@@ -146,6 +146,15 @@ def docking(event):
     if phase_two:
         if tag_visible:
             if math.abs(alpha) < 5:
+                if y0 < 0.1:
+                    cam_msg.pan.data = 270
+                    cam_pub.publish(cam_msg)
+                    bot_msg.linear.x = 0
+                    bot_msg.angular.z = 0
+                    """
+                    remove this
+                    """
+                    is_docking = False
                 # y0 > 0 => tag is on left side of camera => robot need to drive backward => direction = -1
                 # y0 < 0 => tag is on right side of camera => robot need to drive forward => direction = 1
                 direction = -1 * y0
