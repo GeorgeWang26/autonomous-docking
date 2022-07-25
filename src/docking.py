@@ -29,6 +29,7 @@ is_docking = False
 phase_one = False
 first_time = False
 bot_cam_together = False
+is_charging = False
 
 bridge = CvBridge()
 
@@ -98,7 +99,7 @@ rect_sub = rospy.Subscriber("/image_rect", Image, detect_tag, queue_size=1)
 
 
 def docking(event):
-    global y0, cx0, w, alpha, cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, first_time, bot_cam_together, direction
+    global y0, cx0, w, alpha, cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, first_time, bot_cam_together, direction, is_charging
     if not is_docking:
         print("out")
         return
@@ -146,20 +147,22 @@ def docking(event):
     if phase_two:
         if tag_visible:
             if math.abs(alpha) < 5:
+                """
+                abort, is_docking=False if move further than |ry|
+                """
                 if y0 < 0.1:
                     cam_msg.pan.data = 270
                     cam_pub.publish(cam_msg)
                     bot_msg.linear.x = 0
                     bot_msg.angular.z = 0
-                    """
-                    remove this
-                    """
-                    is_docking = False
-                # y0 > 0 => tag is on left side of camera => robot need to drive backward => direction = -1
-                # y0 < 0 => tag is on right side of camera => robot need to drive forward => direction = 1
-                direction = -1 * y0
-                bot_msg.linear.x = direction * 0.3
-                bot_msg.angular.z = 0
+                    phase_two = False
+                    phase_three = True
+                else:
+                    # y0 > 0 => tag is on left side of camera => robot need to drive backward => direction = -1
+                    # y0 < 0 => tag is on right side of camera => robot need to drive forward => direction = 1
+                    direction = -1 * y0
+                    bot_msg.linear.x = direction * 0.3
+                    bot_msg.angular.z = 0
             else:
                 # tag is in vision, spin robot to make |alpha| < 5
                 bot_msg.linear = 0
@@ -171,11 +174,31 @@ def docking(event):
         bot_pub.publish(bot_msg)
         return
 
+    if phase_three:
+        """"
+        is_charging is never updated, need to physically stop the process
+        also stop if move too far, further than x0
+        """
+        if is_charging:
+            bot_msg.linear.x = 0
+            bot_msg.angular.z = 0
+            phase_three = False
+            is_docking = False
+        elif tag_visible and math.abs(alpha) < 5:
+            # wireless reciever on the back
+            bot_msg.linear.x = -0.2
+            bot_msg.angular.z = 0
+        else:
+            bot_msg.linear = 0
+            bot_msg.angular = 0.2
+        bot_pub.publish(bot_msg)
+        return
+
 """
 use a service call to active docking
 """
 def start_docking():
-    global cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, first_time, bot_cam_together
+    global cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, first_time, bot_cam_together, phase_two, phase_three, is_charging
     cam_msg.pan.data = 90
     cam_pub.publish(cam_msg)
 
@@ -189,6 +212,9 @@ def start_docking():
     phase_one = True
     first_time = False
     bot_cam_together = True
+    phase_two = False
+    phase_three = False
+    is_charging = False
 
 
 
