@@ -7,7 +7,15 @@ from scipy.spatial.transform import Rotation as R
 
 
 # cam = cv2.VideoCapture(0)
-cam = cv2.VideoCapture("rtspsrc location=rtsp://192.168.42.120:554/snl/live/1/1 latency=0 ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! appsink")
+
+# x86 color
+# cam = cv2.VideoCapture("rtspsrc location=rtsp://192.168.42.120:554/snl/live/1/1 latency=0 ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! appsink")
+
+# arm color
+# cam = cv2.VideoCapture("rtspsrc location=rtsp://192.168.42.120:554/snl/live/1/1 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! nvvidconv ! video/x-raw, format=BGRx ! appsink")
+
+# arm gray, by default read in nv12 format, single channle
+cam = cv2.VideoCapture("rtspsrc location=rtsp://192.168.42.120:554/snl/live/1/1 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! nvvidconv ! appsink")
 
 # with open("resources/webcam_calibration.yaml") as f:
 with open("resources/ptz_calibration.yaml") as f:
@@ -40,16 +48,22 @@ at_detector = Detector(families='tag36h11',
 while True:
     # rectify
     ret, raw_frame = cam.read()
-    rect_color_frame = cv2.undistort(raw_frame, cam_mtx, dist_cef, None, new_cam_mtx)
-    rect_frame = cv2.cvtColor(rect_color_frame, cv2.COLOR_BGR2GRAY)
+    # x86
+    # rect_color_frame = cv2.undistort(raw_frame, cam_mtx, dist_cef, None, new_cam_mtx)
+    # rect_frame = cv2.cvtColor(rect_color_frame, cv2.COLOR_BGR2GRAY)
+    rect_frame = cv2.undistort(raw_frame, cam_mtx, dist_cef, None, new_cam_mtx)
+
+
+    # print(rect_color_frame.shape)
 
     # display using cv
-    # cv2.imshow("raw", raw_frame)
-    cv2.imshow("rect_color", rect_color_frame)
-    # cv2.imshow("rect", rect_frame)
+    cv2.imshow("raw", raw_frame)
+    # cv2.imshow("rect_color", rect_color_frame)
+    cv2.imshow("rect", rect_frame)
 
     # use new_cam_params since rect_frame is undistorted
-    tags = at_detector.detect(rect_frame, True, new_cam_params, tag_size)
+    #tags = at_detector.detect(rect_frame, True, new_cam_params, tag_size)
+    tags = []
     for tag in tags:
         # print(tag)
         r = R.from_matrix(tag.pose_R)
