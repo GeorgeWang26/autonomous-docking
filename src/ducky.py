@@ -1,20 +1,10 @@
 import cv2
-# import rospy
-# from sensor_msgs.msg import Image, CameraInfo
-# from cv_bridge import CvBridge
+import rospy
 import yaml
 import numpy as np
 from dt_apriltags import Detector
 from scipy.spatial.transform import Rotation as R
 
-
-# rospy.init_node("cv_to_ros")
-# raw_pub = rospy.Publisher("/image_raw", Image, queue_size=1)
-# rect_color_pub = rospy.Publisher("/image_rect_color", Image, queue_size=1)
-# rect_pub = rospy.Publisher("/image_rect", Image, queue_size=1)
-# info_pub = rospy.Publisher("/camera_info", CameraInfo, queue_size=1)
-
-# bridge = CvBridge()
 
 # cam = cv2.VideoCapture(0)
 cam = cv2.VideoCapture("rtspsrc location=rtsp://192.168.42.120:554/snl/live/1/1 latency=0 ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! appsink")
@@ -23,17 +13,6 @@ cam = cv2.VideoCapture("rtspsrc location=rtsp://192.168.42.120:554/snl/live/1/1 
 with open("resources/ptz_calibration.yaml") as f:
     calibration = yaml.safe_load(f)
     f.close()
-
-# /camera_info
-# info_msg = CameraInfo()
-# info_msg.header.frame_id = "ptz"
-# info_msg.width = calibration["image_width"]
-# info_msg.height = calibration["image_height"]
-# info_msg.distortion_model = calibration["distortion_model"]
-# info_msg.K = calibration["camera_matrix"]["data"]
-# info_msg.D = calibration["distortion_coefficients"]["data"]
-# info_msg.R = calibration["rectification_matrix"]["data"]
-# info_msg.P = calibration["projection_matrix"]["data"]
 
 
 
@@ -51,7 +30,7 @@ new_cam_params = (new_cam_mtx[0,0], new_cam_mtx[1,1], new_cam_mtx[0,2], new_cam_
 
 tag_size = 0.166
 at_detector = Detector(families='tag36h11',
-                            nthreads=4,
+                            nthreads=12,
                             quad_decimate=1.0,
                             quad_sigma=0.0,
                             refine_edges=1,
@@ -63,24 +42,6 @@ while True:
     ret, raw_frame = cam.read()
     rect_color_frame = cv2.undistort(raw_frame, cam_mtx, dist_cef, None, new_cam_mtx)
     rect_frame = cv2.cvtColor(rect_color_frame, cv2.COLOR_BGR2GRAY)
-
-    # convert to ros msg format
-    # raw_msg = bridge.cv2_to_imgmsg(raw_frame, encoding = "bgr8")
-    # rect_color_msg = bridge.cv2_to_imgmsg(rect_color_frame, encoding = "bgr8")
-    # rect_msg = bridge.cv2_to_imgmsg(rect_frame, encoding = "bgr8")
-
-    # time for header
-    # now = rospy.Time.now()
-    # info_msg.header.stamp = now
-    # raw_msg.header.stamp = now
-    # rect_color_msg.header.stamp = now
-    # rect_msg.header.stamp = now
-
-    # publish to topics
-    # raw_pub.publish(raw_msg)
-    # rect_color_pub.publish(rect_color_msg)
-    # rect_pub.publish(rect_msg)
-    # info_pub.publish(info_msg)
 
     # display using cv
     # cv2.imshow("raw", raw_frame)
