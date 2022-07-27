@@ -1,5 +1,7 @@
 string family
 int32 id
+int32 width
+int32 height
 
 # pixel position of tag center
 float64 cx

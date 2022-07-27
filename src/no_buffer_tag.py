@@ -32,6 +32,8 @@ at_detector = Detector(families='tag36h11',
 rospy.init_node("vision_processing")
 tag_pub = rospy.Publisher("/apriltag_detection", TagInfo, queue_size = 1)
 tag_msg = TagInfo()
+tag_msg.width = w
+tag_msg.height = h
 
 while True:
     ret, raw_frame = cam.read()
