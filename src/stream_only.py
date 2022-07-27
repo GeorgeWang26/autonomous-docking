@@ -4,7 +4,7 @@ import yaml
 import numpy as np
 from dt_apriltags import Detector
 from scipy.spatial.transform import Rotation as R
-from sensor_msg.msg import Image
+from sensor_msgs.msg import Image
 
 # arm gray, by default read in nv12 format, single channle
 #cam = cv2.VideoCapture("rtspsrc location=rtsp://192.168.42.120:554/snl/live/1/1 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! nvvidconv ! appsink")
@@ -32,7 +32,7 @@ print("<<", cam.get(cv2.CAP_PROP_BUFFERSIZE), ">>")
 print("===========================")
 
 
-ropy.init_node("stream_only")
+rospy.init_node("stream_only")
 pub = rospy.Publisher("/image_encoded", Image, queue_size = 1)
 msg = Image()
 while True:
@@ -40,19 +40,22 @@ while True:
     ret, raw_frame = cam.read()
     rect_frame = cv2.undistort(raw_frame, cam_mtx, dist_cef, None, new_cam_mtx)
     
-    print(rect_frame.shape)
+    #print(rect_frame.shape)
     
     encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 90]
     result, encimg = cv2.imencode('.jpg', rect_frame, encode_param)
+    #print(type(encimg[0]))
     decimg = cv2.imdecode(encimg, cv2.IMREAD_GRAYSCALE)
-    print(encimg.shape)
-    print(decimg.shape)
-    print("===========================================")
-    msg.data = encimg
+    #print(encimg.shape)
+    #print(decimg.shape)
+    #print("===========================================")
+    msg.data = encimg.tolist()
+    #print(msg)
+    #print(type(encimg.tolist()))
     pub.publish(msg)
     # display using cv
-    cv2.imshow("raw", raw_frame)
-    cv2.imshow("rect", rect_frame)
-    cv2.imshow("decoded", decimg)
+    #cv2.imshow("raw", raw_frame)
+    #cv2.imshow("rect", rect_frame)
+    #cv2.imshow("decoded", decimg)
     if cv2.waitKey(1) == 27:
         break
