@@ -4,7 +4,7 @@ import yaml
 import numpy as np
 from dt_apriltags import Detector
 from scipy.spatial.transform import Rotation as R
-
+from sensor_msg.msg import Image
 
 # arm gray, by default read in nv12 format, single channle
 #cam = cv2.VideoCapture("rtspsrc location=rtsp://192.168.42.120:554/snl/live/1/1 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! nvvidconv ! appsink")
@@ -30,6 +30,11 @@ print("===========================")
 print("===========================")
 print("<<", cam.get(cv2.CAP_PROP_BUFFERSIZE), ">>")
 print("===========================")
+
+
+ropy.init_node("stream_only")
+pub = rospy.Publisher("/image_encoded", Image, queue_size = 1)
+msg = Image()
 while True:
     # rectify
     ret, raw_frame = cam.read()
@@ -43,6 +48,8 @@ while True:
     print(encimg.shape)
     print(decimg.shape)
     print("===========================================")
+    msg.data = encimg
+    pub.publish(msg)
     # display using cv
     cv2.imshow("raw", raw_frame)
     cv2.imshow("rect", rect_frame)
