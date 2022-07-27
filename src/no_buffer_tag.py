@@ -41,6 +41,7 @@ while True:
     # use new_cam_params since rect_frame is undistorted
     tags = at_detector.detect(rect_frame, True, new_cam_params, tag_size)
     for tag in tags:
+        print(tag)
         r = R.from_matrix(tag.pose_R)
         euler = r.as_euler("zxy", degrees=True)
         x = tag.pose_t[2][0]
@@ -49,8 +50,8 @@ while True:
         print("x:", x, "y:", y, "z:", z)
         print("euler", euler)
         print("--------------------------------------")
-        tag_msg.family = tag.tag_family
-        tag_msg.id = tag.id
+        tag_msg.family = tag.tag_family.decode("utf-8")
+        tag_msg.id = tag.tag_id
         tag_msg.cx = tag.center[0]
         tag_msg.cy = tag.center[1]
         tag_msg.tx = x
@@ -61,8 +62,8 @@ while True:
         YAW IS MOST IMPORTANT
         """
         tag_msg.roll = euler[0]
-        tag_msg.roll = euler[1]
-        tag_msg.roll = euler[2]
+        tag_msg.pitch = euler[1]
+        tag_msg.yaw = euler[2]
         tag_pub.publish(tag_msg)
 
 
