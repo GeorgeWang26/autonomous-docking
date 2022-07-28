@@ -3,7 +3,6 @@ from auto_docking.msg import TagInfo
 from ptz_pkg.msg import PTZPosition
 from geometry_msgs.msg import Twist
 import time
-import math
 
 
 
@@ -54,12 +53,15 @@ def start_docking():
     global cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, first_time, bot_cam_together, phase_two, phase_three, is_charging
     cam_msg.pan.data = 90
     cam_pub.publish(cam_msg)
-
+    rospy.sleep(1)
+    cam_pub.publish(cam_msg)
+    print(cam_msg)
     bot_msg.linear.x = 0
     bot_msg.angular.z = 0
     bot_pub.publish(bot_msg)
-    
-    time.sleep(3)
+    print("start docking")
+    rospy.sleep(3)
+    print("camera face forward together with robot")
     # only start docking after cam and bot are together
     is_docking = True
     phase_one = True
@@ -70,19 +72,18 @@ def start_docking():
     is_charging = False
 
 def docking(event):
-    global ty, cx, width, alpha, cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, first_time, bot_cam_together, direction, is_charging
+    global ty, cx, width, alpha, cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, phase_two, phase_three, first_time, bot_cam_together, direction, is_charging
     if not is_docking:
-        print("not docking")
+        # print("not docking")
         return
+    # print("is docking")
     if phase_one:
         if tag_visible and (0.45 * width < cx) and (cx < 0.55 * width):
             if bot_msg.angular.z == 0:
                 if bot_cam_together:
-                    """
-                    ASSUMING when facing tag, and robot is on right side of tag, alpha > 0, WANT 90 +++ |alpha|
-                    """
-                    # to left spin camera, increase pan angle
-                    cam_msg.pan.data += 90 + (alpha > 0) * math.abs(alpha)
+                    # when facing tag, and robot is on right side of tag, alpha > 0
+                    # WANT 90 + |alpha| to left spin camera, increase pan angle
+                    cam_msg.pan.data += 90 + (alpha > 0) * abs(alpha)
                     # used for phase two, in case tag is not visible
                     """
                     ASSUMING when facing tag, and robot is on right side of tag, alpha > 0, WANT -1
@@ -96,6 +97,7 @@ def docking(event):
                     cam_msg.pan.data = 180
                     phase_one = False
                     phase_two = True
+                print("moving camera in phase 1")
                 cam_pub.publish(cam_msg)
             else:
                 # tag in center, stop robot spin
@@ -104,12 +106,12 @@ def docking(event):
             # wait for cam and/or bot spin to finish before detect tag again
             time.sleep(3)
         else:
-            """
-            ASSUMING robot turn RIGHT when z > 0
-            report error if cant find tag after 360
-            """
-            bot_msg.angular.z = 0.2
+            # robot turn right when z < 0
+            print("spin robot")
+            bot_msg.angular.z = -0.2
             bot_pub.publish(bot_msg)
+            # rospy.sleep(1)
+            # bot_pub.publish(bot_msg)
         return
 
     # phase two
@@ -117,9 +119,9 @@ def docking(event):
     # camera stay STILL
     if phase_two:
         if tag_visible:
-            if math.abs(alpha) < 5:
+            if abs(alpha) < 5:
                 """
-                abort, is_docking=False if move further than |ry|
+                add abort feature, is_docking=False if move further than |ry|
                 """
                 if ty < 0.1:
                     cam_msg.pan.data = 270
@@ -136,12 +138,12 @@ def docking(event):
                     bot_msg.angular.z = 0
             else:
                 # tag is in vision, spin robot to make |alpha| < 5
-                bot_msg.linear = 0
-                bot_msg.angular = 0.2
+                bot_msg.linear.x = 0
+                bot_msg.angular.z = 0.2
         else:
             # drive blind based on previous direction, hope to dirve parallel to tag plane
-            bot_msg.linear = direction * 0.3
-            bot_msg.angular = 0
+            bot_msg.linear.x = direction * 0.3
+            bot_msg.angular.z = 0
         bot_pub.publish(bot_msg)
         return
 
@@ -155,13 +157,13 @@ def docking(event):
             bot_msg.angular.z = 0
             phase_three = False
             is_docking = False
-        elif tag_visible and math.abs(alpha) < 5:
+        elif tag_visible and abs(alpha) < 5:
             # wireless reciever on the back
             bot_msg.linear.x = -0.2
             bot_msg.angular.z = 0
         else:
-            bot_msg.linear = 0
-            bot_msg.angular = 0.2
+            bot_msg.linear.x = 0
+            bot_msg.angular.z = -0.2
         bot_pub.publish(bot_msg)
         return
 
@@ -182,5 +184,5 @@ rospy.Timer(rospy.Duration(0.05), docking)
 for testing purpose, start docking manually
 """
 start_docking()
-
+print("start spin")
 rospy.spin()

@@ -38,7 +38,7 @@ tag_msg.height = h
 while True:
     ret, raw_frame = cam.read()
     rect_frame = cv2.undistort(raw_frame, cam_mtx, dist_cef, None, new_cam_mtx)
-    cv2.imshow("rect", rect_frame)
+    # cv2.imshow("rect", rect_frame)
 
     # use new_cam_params since rect_frame is undistorted
     tags = at_detector.detect(rect_frame, True, new_cam_params, tag_size)
