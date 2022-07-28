@@ -42,6 +42,7 @@ while True:
 
     # use new_cam_params since rect_frame is undistorted
     tags = at_detector.detect(rect_frame, True, new_cam_params, tag_size)
+    tag_msg.family = ""
     for tag in tags:
         print(tag)
         r = R.from_matrix(tag.pose_R)
@@ -66,8 +67,7 @@ while True:
         tag_msg.roll = euler[0]
         tag_msg.pitch = euler[1]
         tag_msg.yaw = euler[2]
-        tag_pub.publish(tag_msg)
-
+    tag_pub.publish(tag_msg)
 
     if cv2.waitKey(1) == 27:
         break

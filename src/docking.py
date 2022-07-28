@@ -1,27 +1,20 @@
-from operator import truediv
-from time import time
-
-from cv2 import phase
-import cv2
 import rospy
-from sensor_msgs.msg import Image, CameraInfo
-from cv_bridge import CvBridge
-import yaml
-import numpy as np
-# import numba
-from dt_apriltags import Detector
-from scipy.spatial.transform import Rotation as R
+from auto_docking.msg import TagInfo
 from ptz_pkg.msg import PTZPosition
 from geometry_msgs.msg import Twist
 import time
 import math
 
+
+
+width = 0
+height = 0
 rx = 0
 ry = 0
-cx0 = 0
-cy0 = 0
-x0 = 0
-y0 = 0
+cx = 0
+cy = 0
+tx = 0
+ty = 0
 alpha = 0
 direction = 0
 tag_visible = False
@@ -31,80 +24,58 @@ first_time = False
 bot_cam_together = False
 is_charging = False
 
-bridge = CvBridge()
-
-rospy.init_node("docking")
-cam_pub = rospy.Publisher("/ptz/move", PTZPosition, queue_size=1)
-bot_pub = rospy.Publisher("/vel_mux/cmd_vel", Twist, queue_size=1)
-
 bot_msg = Twist()
 
 cam_msg = PTZPosition()
 cam_msg.tilt.data = 90
 cam_msg.degrees.data = True
 
-# with open("resources/webcam_calibration.yaml") as f:
-with open("resources/ptz_calibration.yaml") as f:
-    calibration = yaml.safe_load(f)
-    f.close()
-
-# ros calibration pkg uses cv2.getOptimalNewCameraMatrix(alpha = 0) to calculate projection_mtx
-# don't need to re-calculate, just read from yml
-# new_cam_mtx, roi = cv2.getOptimalNewCameraMatrix(cam_mtx, dist_cef, (w,h), 0, (w,h))
-w = calibration["image_width"]
-h = calibration["image_height"]
-projection_mtx = np.array(calibration["projection_matrix"]["data"]).reshape((3,4))
-new_cam_mtx = np.delete(projection_mtx, -1, axis=1)
-new_cam_params = (new_cam_mtx[0,0], new_cam_mtx[1,1], new_cam_mtx[0,2], new_cam_mtx[1,2])
-
-tag_size = 0.166
-at_detector = Detector(families='tag36h11',
-                            nthreads=12,
-                            quad_decimate=1.0,
-                            quad_sigma=0.0,
-                            refine_edges=1,
-                            decode_sharpening=0.25,
-                            debug=0)
 
 
-def detect_tag(msg):
-    global x0, y0, cx0, cy0, alpha, tag_visible
-    rect_frame = bridge.imgmsg_to_cv2(msg, "mono8")
-    tags = at_detector.detect(rect_frame, True, new_cam_params, tag_size)
-    """
-    maybe will cause problem with split second false?
-    """
-    tag_visible = False
-    for tag in tags:
-        if tag.tag_id == "0":
-            tag.visible = True
-            # in cv frame, top left (0,0), horizontal is x, vertical is y
-            cx0 = tag.center[0]
-            cy0 = tag.center[1]
-            # in ros frame, x is foward, y is left, z is up
-            x0 = tag.pose_t[2][0]
-            y0 = -1 * tag.pose_t[0][0]
-            z = -1 * tag.pose_t[1][0]
-            # angle (-90 to 90) between heading of camera and heading of tag
-            r = R.from_matrix(tag.pose_R)
-            euler = r.as_euler("zxy", degrees=True)
-            alpha = euler[2]
-            print(cx0, cy0)
-            print(x0, y0, z)
-            print(alpha, euler)
-            print("--------------------------------------")
+
+def tag_update(msg):
+    global tx, ty, cx, cy, alpha, tag_visible, width
+    if msg.family == "":
+        tag_visible = False
+        return
+    width = msg.width
+    tx = msg.tx
+    ty = msg.ty
+    cx = msg.cx
+    cy = msg.cy
+    alpha = msg.yaw
+    tag_visible = True
 
 
-rect_sub = rospy.Subscriber("/image_rect", Image, detect_tag, queue_size=1)
+"""
+use a service call to active docking
+"""
+def start_docking():
+    global cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, first_time, bot_cam_together, phase_two, phase_three, is_charging
+    cam_msg.pan.data = 90
+    cam_pub.publish(cam_msg)
 
+    bot_msg.linear.x = 0
+    bot_msg.angular.z = 0
+    bot_pub.publish(bot_msg)
+    
+    time.sleep(3)
+    # only start docking after cam and bot are together
+    is_docking = True
+    phase_one = True
+    first_time = False
+    bot_cam_together = True
+    phase_two = False
+    phase_three = False
+    is_charging = False
 
 def docking(event):
-    global y0, cx0, w, alpha, cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, first_time, bot_cam_together, direction, is_charging
+    global ty, cx, width, alpha, cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, first_time, bot_cam_together, direction, is_charging
     if not is_docking:
-        print("out")
+        print("not docking")
         return
     if phase_one:
-        if tag_visible and (0.45 * w < cx0) and (cx0 < 0.55 * w):
+        if tag_visible and (0.45 * width < cx) and (cx < 0.55 * width):
             if bot_msg.angular.z == 0:
                 if bot_cam_together:
                     """
@@ -150,7 +121,7 @@ def docking(event):
                 """
                 abort, is_docking=False if move further than |ry|
                 """
-                if y0 < 0.1:
+                if ty < 0.1:
                     cam_msg.pan.data = 270
                     cam_pub.publish(cam_msg)
                     bot_msg.linear.x = 0
@@ -160,7 +131,7 @@ def docking(event):
                 else:
                     # y0 > 0 => tag is on left side of camera => robot need to drive backward => direction = -1
                     # y0 < 0 => tag is on right side of camera => robot need to drive forward => direction = 1
-                    direction = -1 * y0
+                    direction = -1 * ty
                     bot_msg.linear.x = direction * 0.3
                     bot_msg.angular.z = 0
             else:
@@ -194,39 +165,21 @@ def docking(event):
         bot_pub.publish(bot_msg)
         return
 
-"""
-use a service call to active docking
-"""
-def start_docking():
-    global cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, first_time, bot_cam_together, phase_two, phase_three, is_charging
-    cam_msg.pan.data = 90
-    cam_pub.publish(cam_msg)
-
-    bot_msg.linear.x = 0
-    bot_msg.angular.z = 0
-    bot_pub.publish(bot_msg)
-    
-    time.sleep(3)
-    # only start docking after cam and bot are together
-    is_docking = True
-    phase_one = True
-    first_time = False
-    bot_cam_together = True
-    phase_two = False
-    phase_three = False
-    is_charging = False
 
 
 
+rospy.init_node("docking")
+cam_pub = rospy.Publisher("/ptz/move", PTZPosition, queue_size=1)
+bot_pub = rospy.Publisher("/vel_mux/cmd_vel", Twist, queue_size=1)
+tag_info_sub = rospy.Subscriber("/apriltag_detection", TagInfo, tag_update, queue_size=1)
 
 # 20hz cycle
 # time.sleep() inside the timer callback does not affect the main cycle such as tag detection
 rospy.Timer(rospy.Duration(0.05), docking)
 
 
-
 """
-for testing purpose
+for testing purpose, start docking manually
 """
 start_docking()
 
