@@ -59,7 +59,6 @@ def start_docking():
     bot_msg.linear.x = 0
     bot_msg.angular.z = 0
     bot_pub.publish(bot_msg)
-    print("start docking")
     rospy.sleep(3)
     print("camera face forward together with robot")
     # only start docking after cam and bot are together
@@ -81,33 +80,35 @@ def docking(event):
         if tag_visible and (0.45 * width < cx) and (cx < 0.55 * width):
             if bot_msg.angular.z == 0:
                 if bot_cam_together:
-                    # when facing tag, and robot is on right side of tag, alpha > 0
-                    # WANT 90 + |alpha| to left spin camera, increase pan angle
-                    cam_msg.pan.data += 90 + (alpha > 0) * abs(alpha)
-                    # used for phase two, in case tag is not visible
-                    """
-                    ASSUMING when facing tag, and robot is on right side of tag, alpha > 0, WANT -1
-                    so robot backoff -1 when at right, positive alpha
-                    and dirve forward 1 when at left, negative alpha
-                    """
+                    # robot at left, negative alpha, direction = 1, drive forward, camera spin left by 90 - |alpha|
+                    # robot at right, positive alpha, direction = -1, drive backward, camera spin left by 90 + |alpha|
                     direction = alpha < 0
+                    # camera spin left with increased pan
+                    cam_msg.pan.data += 90 - (alpha > 0) * abs(alpha)
                     bot_cam_together = False
+                    print("phase 1      spin camera first time")
                 else:
                     # spin camera to face left
                     cam_msg.pan.data = 180
                     phase_one = False
                     phase_two = True
-                print("moving camera in phase 1")
+                    is_docking = False
+                    print("phase 1      spin camera second time")
                 cam_pub.publish(cam_msg)
+                print("phase 1      moving camera")
+                rospy.sleep(1)
+                cam_pub.publish(cam_msg)
+                print("phase 1      moving camera again after sleep for 1 sec")
             else:
                 # tag in center, stop robot spin
                 bot_msg.angular.z = 0
+                print("phase 1      stoping robot before spinning camera")
                 bot_pub.publish(bot_msg)
             # wait for cam and/or bot spin to finish before detect tag again
             time.sleep(3)
         else:
             # robot turn right when z < 0
-            print("spin robot")
+            # print("spin robot")
             bot_msg.angular.z = -0.2
             bot_pub.publish(bot_msg)
             # rospy.sleep(1)
@@ -184,5 +185,5 @@ rospy.Timer(rospy.Duration(0.05), docking)
 for testing purpose, start docking manually
 """
 start_docking()
-print("start spin")
+print("start rospy spin")
 rospy.spin()
