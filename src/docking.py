@@ -18,9 +18,10 @@ direction = 0
 tag_visible = False
 is_docking = False
 phase_one = False
-first_time = False
 bot_cam_together = False
 is_charging = False
+# y_offset = 0.085
+y_offset = 0.03
 
 bot_msg = Twist()
 
@@ -49,7 +50,8 @@ def tag_update(msg):
 use a service call to active docking
 """
 def start_docking():
-    global cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, first_time, bot_cam_together, phase_two, phase_three, is_charging
+    global cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, bot_cam_together, phase_two, phase_three, is_charging
+    print("camera face forward together with robot\n\n")
     cam_msg.pan.data = 90
     cam_pub.publish(cam_msg)
     rospy.sleep(1)
@@ -59,25 +61,23 @@ def start_docking():
     bot_msg.linear.x = 0
     bot_msg.angular.z = 0
     bot_pub.publish(bot_msg)
-    print("camera face forward together with robot\n\n")
     # only start docking after cam and bot are together
     is_docking = True
-    phase_one = True
-    first_time = False
     bot_cam_together = True
+    phase_one = True
     phase_two = False
     phase_three = False
     is_charging = False
 
 def docking(event):
-    global ty, cx, width, alpha, cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, phase_two, phase_three, first_time, bot_cam_together, direction, is_charging
+    global ty, cx, width, alpha, cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, phase_two, phase_three, bot_cam_together, direction, is_charging, tag_visible
     if not is_docking:
         # print("not docking")
         return
     # print("is docking")
     if phase_one:
         # if tag_visible and (abs(cx - 0.5 * width) / width) < 0.03:
-        if tag_visible and abs(ty) < 0.05:
+        if tag_visible and abs(ty) < 0.03:
             bot_msg.angular.z = 0
             print("phase 1      stoping robot before spinning camera\n")
             bot_pub.publish(bot_msg)
@@ -86,6 +86,9 @@ def docking(event):
             if bot_cam_together:
                 # robot at left, negative alpha, direction = 1, drive forward, camera spin left by 90 - |alpha|
                 # robot at right, positive alpha, direction = -1, drive backward, camera spin left by 90 + |alpha|
+                """
+                add a counter here due to alpha jump pos/neg
+                """
                 direction = 1 if alpha < 0 else -1
                 # camera spin left with increased pan
                 print("=============================================")
@@ -103,6 +106,7 @@ def docking(event):
                 phase_one = False
                 phase_two = True
                 # is_docking = False
+                print("current alpha:", alpha)
                 print("exiting phase 1, pan set to 180 (face left of robot)\n\n\n")
 
             cam_pub.publish(cam_msg)
@@ -111,7 +115,7 @@ def docking(event):
             rospy.sleep(3)
         else:
             # robot turn right when z < 0
-            bot_msg.angular.z = -0.05 if tag_visible else -0.4
+            bot_msg.angular.z = -0.03 if tag_visible else -0.4
             bot_pub.publish(bot_msg)
         return
 
@@ -122,31 +126,41 @@ def docking(event):
     if phase_two:
         if tag_visible:
             # MAY NEED TO CHANGE THIS BASED ON TESTING
-            if abs(alpha) < 3:
-                # when camera is facing left 90deg of the robot, rotation center is 8.5cm (0.085m) to the right of optical camera
-                if abs(ty + 0.085) < 0.05:
-                    bot_msg.linear.x = 0
-                    bot_pub.publish(bot_msg)
-                    cam_msg.pan.data = 270
-                    cam_pub.publish(cam_msg)
-                    rospy.sleep(1)
-                    cam_pub.publish(cam_msg)
-                    rospy.sleep(3)
-                    print("camera should face backward now")
-                    phase_two = False
-                    phase_three = True
-                    is_docking = False
-                    print("phase 2 finished successfully, robot rotation center stop on normal line, camera still facing left\n\n\n")
-                else:
-                    # move slowly when tag is in picture
-                    direction = ty > 0
-                    bot_msg.linear.x = direction * 0.1
-            else:
-                # |alpha| is too large, redo phase one
-                print("exit phase 2, |alpha| is too large, redo phase_one now\n\n\n")
-                phase_one = True
-                phase_two = False
+            # if abs(alpha) < 20:
+
+
+            # when camera is facing left 90deg of the robot, rotation center is 8.5cm (0.085m) to the right of optical camera
+            if abs(ty + y_offset) < 0.03:
                 bot_msg.linear.x = 0
+                bot_pub.publish(bot_msg)
+                print("bot stop")
+                cam_msg.pan.data = 270
+                cam_pub.publish(cam_msg)
+                rospy.sleep(1)
+                cam_pub.publish(cam_msg)
+                rospy.sleep(3)
+                print("camera face backward")
+                phase_two = False
+                phase_three = True
+                is_docking = False
+                print("phase 2 finished successfully, robot rotation center stop on normal line\n\n\n")
+            else:
+                # move slowly when tag is in picture
+                direction = 1 if (ty + y_offset) < 0 else -1
+                speed = 0.04 if abs(ty + y_offset) < 0.3 else 0.2
+                # print(speed)
+                bot_msg.linear.x = direction * speed
+
+
+            # else:
+            #     # |alpha| is too large, redo phase one
+            #     print("alpha:", alpha)
+            #     print("exit phase 2, |alpha| is too large, redo phase_one now\n\n\n")
+            #     start_docking()
+            #     return
+                # phase_one = True
+                # phase_two = False
+                # bot_msg.linear.x = 0
         else:
             # drive blind based on previous direction, hope to dirve parallel to tag plane
             # robot at left, negative alpha, direction = 1, drive forward
@@ -154,8 +168,13 @@ def docking(event):
             """
             add abort feature, is_docking=False if move further than |ty| withought seeing tag, ry not needed, only 8.5cm difference
             """
-            bot_msg.linear.x = direction * 0.3
-
+            bot_msg.linear.x = direction * 0.5
+        # if bot_msg.linear.x > 0:
+        #     print("forward")
+        # elif bot_msg.linear.x < 0:
+        #     print("back")
+        # else:
+        #     print("000000000000000")
         bot_pub.publish(bot_msg)
         return
 

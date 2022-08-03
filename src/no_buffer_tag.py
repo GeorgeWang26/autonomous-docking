@@ -23,8 +23,8 @@ new_cam_params = (new_cam_mtx[0,0], new_cam_mtx[1,1], new_cam_mtx[0,2], new_cam_
 tag_size = 0.166
 at_detector = Detector(families='tag36h11',
                             nthreads=12,
-                            quad_decimate=1.0,
-                            quad_sigma=0.0,
+                            quad_decimate=2.0,
+                            quad_sigma=0.8,
                             refine_edges=1,
                             decode_sharpening=0.25,
                             debug=0)
@@ -34,6 +34,9 @@ tag_pub = rospy.Publisher("/apriltag_detection", TagInfo, queue_size = 1)
 tag_msg = TagInfo()
 tag_msg.width = w
 tag_msg.height = h
+
+tot = 0
+count = 0
 
 while True:
     ret, raw_frame = cam.read()
@@ -67,6 +70,12 @@ while True:
         tag_msg.roll = euler[0]
         tag_msg.pitch = euler[1]
         tag_msg.yaw = euler[2]
+
+        tot = tot + euler[2]
+        count += 1
+        print(tot/count)
+        # count %= 10
+        
     tag_pub.publish(tag_msg)
 
     if cv2.waitKey(1) == 27:
