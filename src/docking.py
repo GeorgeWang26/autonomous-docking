@@ -2,7 +2,6 @@ import rospy
 from auto_docking.msg import TagInfo
 from ptz_pkg.msg import PTZPosition
 from geometry_msgs.msg import Twist
-import time
 
 
 
@@ -55,11 +54,11 @@ def start_docking():
     cam_pub.publish(cam_msg)
     rospy.sleep(1)
     cam_pub.publish(cam_msg)
+    rospy.sleep(3)
     # print(cam_msg)
     bot_msg.linear.x = 0
     bot_msg.angular.z = 0
     bot_pub.publish(bot_msg)
-    rospy.sleep(3)
     print("camera face forward together with robot\n\n")
     # only start docking after cam and bot are together
     is_docking = True
@@ -103,7 +102,7 @@ def docking(event):
                 cam_msg.pan.data = 180
                 phase_one = False
                 phase_two = True
-                is_docking = False
+                # is_docking = False
                 print("exiting phase 1, pan set to 180 (face left of robot)\n\n\n")
 
             cam_pub.publish(cam_msg)
@@ -115,56 +114,78 @@ def docking(event):
             bot_msg.angular.z = -0.05 if tag_visible else -0.4
             bot_pub.publish(bot_msg)
         return
+
     # phase two
-    # crab walk with cam ALWAYS 90 deg left of bot until is linned up with y offset
-    # camera stay STILL
+    # crab walk (only foward and backward) with cam ALWAYS 90 deg left of bot until is linned up with y offset
+    # camera stay STILL, angular.z REMAIN 0 (set to 0 at the end of phase one already)
+    # if alpha is too big, set phase_one = true and redo phase one
     if phase_two:
         if tag_visible:
-            if abs(alpha) < 5:
-                """
-                add abort feature, is_docking=False if move further than |ry|
-                """
-                if ty < 0.1:
+            # MAY NEED TO CHANGE THIS BASED ON TESTING
+            if abs(alpha) < 3:
+                # when camera is facing left 90deg of the robot, rotation center is 8.5cm (0.085m) to the right of optical camera
+                if abs(ty + 0.085) < 0.05:
+                    bot_msg.linear.x = 0
+                    bot_pub.publish(bot_msg)
                     cam_msg.pan.data = 270
                     cam_pub.publish(cam_msg)
-                    bot_msg.linear.x = 0
-                    bot_msg.angular.z = 0
+                    rospy.sleep(1)
+                    cam_pub.publish(cam_msg)
+                    rospy.sleep(3)
+                    print("camera should face backward now")
                     phase_two = False
                     phase_three = True
+                    is_docking = False
+                    print("phase 2 finished successfully, robot rotation center stop on normal line, camera still facing left\n\n\n")
                 else:
-                    # y0 > 0 => tag is on left side of camera => robot need to drive backward => direction = -1
-                    # y0 < 0 => tag is on right side of camera => robot need to drive forward => direction = 1
-                    direction = -1 * ty
-                    bot_msg.linear.x = direction * 0.3
-                    bot_msg.angular.z = 0
+                    # move slowly when tag is in picture
+                    direction = ty > 0
+                    bot_msg.linear.x = direction * 0.1
             else:
-                # tag is in vision, spin robot to make |alpha| < 5
+                # |alpha| is too large, redo phase one
+                print("exit phase 2, |alpha| is too large, redo phase_one now\n\n\n")
+                phase_one = True
+                phase_two = False
                 bot_msg.linear.x = 0
-                bot_msg.angular.z = 0.2
         else:
             # drive blind based on previous direction, hope to dirve parallel to tag plane
+            # robot at left, negative alpha, direction = 1, drive forward
+            # robot at right, positive alpha, direction = -1, drive backward
+            """
+            add abort feature, is_docking=False if move further than |ty| withought seeing tag, ry not needed, only 8.5cm difference
+            """
             bot_msg.linear.x = direction * 0.3
-            bot_msg.angular.z = 0
+
         bot_pub.publish(bot_msg)
         return
 
+
     if phase_three:
         """"
+        add abort feature, if move too far, further than tx
+        or have camera face down a bit, and terminate when tag is too big
         is_charging is never updated, need to physically stop the process
-        also stop if move too far, further than x0
         """
         if is_charging:
             bot_msg.linear.x = 0
             bot_msg.angular.z = 0
             phase_three = False
             is_docking = False
-        elif tag_visible and abs(alpha) < 5:
-            # wireless reciever on the back
-            bot_msg.linear.x = -0.2
-            bot_msg.angular.z = 0
+            print("robot is charging, docking complete\n\n\n")
+        elif tag_visible:
+            if abs(alpha) < 3:
+                # wireless reciever on the back
+                bot_msg.linear.x = -0.2
+                bot_msg.angular.z = 0
+            else:
+                # robot spin right slowly, tag in vision
+                bot_msg.linear.x = 0
+                bot_msg.angular.z = -0.05
         else:
+            # robot spin right fast, tag NOT in vision
             bot_msg.linear.x = 0
-            bot_msg.angular.z = -0.2
+            bot_msg.angular.z = -0.4
+
         bot_pub.publish(bot_msg)
         return
 
