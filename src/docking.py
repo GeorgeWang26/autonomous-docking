@@ -150,7 +150,7 @@ def docking(event):
     if phase_two:
         if tag_visible:
             # when camera is facing left 90deg of the robot, rotation center is 8.5cm (0.085m) to the right of optical camera
-            ry = ty - 0.15
+            ry = ty - 0.2
             # print("ty:", ty, "  ry:", ry)
             if abs(ry) < 0.01:
                 bot_msg.linear.x = 0
