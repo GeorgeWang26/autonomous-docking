@@ -57,7 +57,6 @@ def start_docking():
     rospy.sleep(1)
     cam_pub.publish(cam_msg)
     rospy.sleep(3)
-    # print(cam_msg)
     bot_msg.linear.x = 0
     bot_msg.angular.z = 0
     bot_pub.publish(bot_msg)
@@ -72,9 +71,7 @@ def start_docking():
 def docking(event):
     global ty, cx, width, alpha, cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, phase_two, phase_three, bot_cam_together, direction, is_charging, tag_visible
     if not is_docking:
-        # print("not docking")
         return
-    # print("is docking")
     if phase_one:
         # if tag_visible and (abs(cx - 0.5 * width) / width) < 0.03:
         if tag_visible and abs(ty) < 0.03:
@@ -120,70 +117,37 @@ def docking(event):
         return
 
     # phase two
-    # crab walk (only foward and backward) with cam ALWAYS 90 deg left of bot until is linned up with y offset
-    # camera stay STILL, angular.z REMAIN 0 (set to 0 at the end of phase one already)
     # if alpha is too big, set phase_one = true and redo phase one
     if phase_two:
         if tag_visible:
-            # MAY NEED TO CHANGE THIS BASED ON TESTING
-            # if abs(alpha) < 20:
-
-
             # when camera is facing left 90deg of the robot, rotation center is 8.5cm (0.085m) to the right of optical camera
             if abs(ty + y_offset) < 0.03:
                 bot_msg.linear.x = 0
                 bot_pub.publish(bot_msg)
-                print("bot stop")
                 cam_msg.pan.data = 270
                 cam_pub.publish(cam_msg)
                 rospy.sleep(1)
                 cam_pub.publish(cam_msg)
                 rospy.sleep(3)
-                print("camera face backward")
                 phase_two = False
                 phase_three = True
                 is_docking = False
-                print("phase 2 finished successfully, robot rotation center stop on normal line\n\n\n")
+                print("exiting phase 2, robot (together with camera) face backward tag\n\n\n")
             else:
-                # move slowly when tag is in picture
                 direction = 1 if (ty + y_offset) < 0 else -1
                 speed = 0.04 if abs(ty + y_offset) < 0.3 else 0.2
-                # print(speed)
                 bot_msg.linear.x = direction * speed
 
-
-            # else:
-            #     # |alpha| is too large, redo phase one
-            #     print("alpha:", alpha)
-            #     print("exit phase 2, |alpha| is too large, redo phase_one now\n\n\n")
-            #     start_docking()
-            #     return
-                # phase_one = True
-                # phase_two = False
-                # bot_msg.linear.x = 0
         else:
             # drive blind based on previous direction, hope to dirve parallel to tag plane
-            # robot at left, negative alpha, direction = 1, drive forward
-            # robot at right, positive alpha, direction = -1, drive backward
-            """
-            add abort feature, is_docking=False if move further than |ty| withought seeing tag, ry not needed, only 8.5cm difference
-            """
             bot_msg.linear.x = direction * 0.5
-        # if bot_msg.linear.x > 0:
-        #     print("forward")
-        # elif bot_msg.linear.x < 0:
-        #     print("back")
-        # else:
-        #     print("000000000000000")
         bot_pub.publish(bot_msg)
         return
 
 
     if phase_three:
         """"
-        add abort feature, if move too far, further than tx
-        or have camera face down a bit, and terminate when tag is too big
-        is_charging is never updated, need to physically stop the process
+        is_charging is never updated, need to kill program with ctr-c
         """
         if is_charging:
             bot_msg.linear.x = 0
