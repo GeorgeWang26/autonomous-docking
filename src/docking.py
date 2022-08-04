@@ -4,13 +4,14 @@ from ptz_pkg.msg import PTZPosition
 from geometry_msgs.msg import Twist
 
 
+tag_visible = False
 width = 0
 cx = 0
 ty = 0
 alpha = 0
 alpha_pos_count = 0
 alpha_neg_count = 0
-tag_visible = False
+alpha_move = []
 
 is_charging = False
 is_docking = False
@@ -31,18 +32,32 @@ cam_msg.degrees.data = True
 
 
 def tag_update(msg):
-    global width, cx, ty, alpha, alpha_pos_count, alpha_neg_count, tag_visible
+    global tag_visible, width, cx, ty, alpha, alpha_pos_count, alpha_neg_count, alpha_move
     if msg.family == "":
         tag_visible = False
+        alpha_move = []
         return
     width = msg.width
     ty = msg.ty
     cx = msg.cx
-    alpha = msg.yaw
+    yaw = msg.yaw
     if alpha > 0:
         alpha_pos_count += 1
     else:
         alpha_neg_count += 1
+
+    alpha_move.append(yaw)
+    alpha_move_len = len(alpha_move)
+    if alpha_move_len > 10:
+        alpha_move.pop(0)
+        alpha_move_len -= 1
+        if alpha_move_len != alpha_move_len:
+            print("\n\n\n\n\n\n\n\nERROR IN MOVING AVERAGE LENGTH\n\n\n")
+    alpha_sum = 0
+    for val in alpha_move:
+        alpha_sum += val
+    alpha = alpha_sum / alpha_move_len
+
     # only set tag_visible=True after all status are updated
     tag_visible = True
 
@@ -75,14 +90,14 @@ def start_docking():
 
 
 def docking(event):
-    global width, cx, ty, alpha, alpha_pos_count, alpha_neg_count, tag_visible, \
+    global tag_visible, width, cx, ty, alpha, alpha_pos_count, alpha_neg_count, \
         cam_pub, cam_msg, bot_pub, bot_msg, is_charging, is_docking, bot_cam_together, direction, wait_alpha, \
-        phase_one, phase_two, phase_two_half, phase_three
+        phase_one, phase_two, phase_two_half, phase_three, alpha_move, alpha_move
     if not is_docking:
         return
     if phase_one:
         # if tag_visible and (abs(cx - 0.5 * width) / width) < 0.03:
-        if tag_visible and abs(ty) < 0.03:
+        if tag_visible and abs(ty) < 0.04:
             bot_msg.angular.z = 0
             print("phase 1      stoping robot before spinning camera")
             bot_pub.publish(bot_msg)
@@ -117,7 +132,7 @@ def docking(event):
                 cam_msg.pan.data = 180
                 phase_one = False
                 phase_two = True
-                print("current alpha:", alpha)
+                print("alpha:", alpha)
                 print("exiting phase 1, pan set to 180 (face left of robot)\n\n\n")
                 # is_docking = False
 
@@ -135,11 +150,12 @@ def docking(event):
     if phase_two:
         if tag_visible:
             # when camera is facing left 90deg of the robot, rotation center is 8.5cm (0.085m) to the right of optical camera
-            # increase ty -> move tag reading left -> move origin of axis right
-            ry = ty + 0.03
-            if abs(ry) < 0.03:
+            ry = ty - 0.15
+            # print("ty:", ty, "  ry:", ry)
+            if abs(ry) < 0.01:
                 bot_msg.linear.x = 0
                 bot_pub.publish(bot_msg)
+                print("alpha:", alpha)
                 cam_msg.pan.data = 270
                 cam_pub.publish(cam_msg)
                 rospy.sleep(1)
@@ -147,6 +163,9 @@ def docking(event):
                 rospy.sleep(3)
                 phase_two = False
                 phase_two_half = True
+                alpha_move = []
+                alpha_move_len = 0
+                alpha = 999
                 print("exiting phase 2, robot stop sideways on normal line\n\n\n")
                 # is_docking = False
             else:
@@ -160,16 +179,19 @@ def docking(event):
         return
 
     if phase_two_half:
-        if abs(alpha) < 3:
+        print("alpha:", alpha)
+        if abs(alpha) < 1:
             bot_msg.angular.z = 0
             phase_two_half = False
             phase_three = True
-            print("current alpha:", alpha)
+            print("========================")
+            print("alpha:", alpha)
             print("exiting phase 2.5, robot face backwards to tag\n\n\n")
             is_docking = False
         else:
             bot_msg.angular.z = -0.05 if tag_visible else -0.4
         bot_pub.publish(bot_msg)
+        return
 
     if phase_three:
         """"
