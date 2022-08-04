@@ -1,3 +1,4 @@
+from ast import Return
 import rospy
 from auto_docking.msg import TagInfo
 from ptz_pkg.msg import PTZPosition
@@ -5,11 +6,7 @@ from geometry_msgs.msg import Twist
 
 
 width = 0
-rx = 0
-ry = 0
 cx = 0
-cy = 0
-tx = 0
 ty = 0
 alpha = 0
 alpha_pos_count = 0
@@ -20,6 +17,7 @@ is_charging = False
 is_docking = False
 bot_cam_together = False
 direction = 0
+wait_alpha = True
 
 phase_one = False
 phase_two = False
@@ -33,25 +31,24 @@ cam_msg.degrees.data = True
 
 
 def tag_update(msg):
-    global tx, ty, cx, cy, alpha, tag_visible, width
+    global width, cx, ty, alpha, alpha_pos_count, alpha_neg_count, tag_visible
     if msg.family == "":
         tag_visible = False
         return
     width = msg.width
-    tx = msg.tx
     ty = msg.ty
     cx = msg.cx
-    cy = msg.cy
     alpha = msg.yaw
     if alpha > 0:
         alpha_pos_count += 1
     else:
         alpha_neg_count += 1
+    # only set tag_visible=True after all status are updated
     tag_visible = True
 
 
 def start_docking():
-    global cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, bot_cam_together, phase_two, phase_three, is_charging
+    global cam_pub, cam_msg, bot_pub, bot_msg, is_charging, is_docking, bot_cam_together, phase_one, phase_two, phase_three, wait_alpha
     print("camera face forward together with robot\n")
     cam_msg.pan.data = 90
     cam_pub.publish(cam_msg)
@@ -61,17 +58,19 @@ def start_docking():
     bot_msg.linear.x = 0
     bot_msg.angular.z = 0
     bot_pub.publish(bot_msg)
-    # only start docking after cam and bot are together
-    is_docking = True
+    is_charging = False
     bot_cam_together = True
     phase_one = True
     phase_two = False
     phase_three = False
-    is_charging = False
-
+    wait_alpha = True
+    # only start docking last, after cam and bot are together and all status are setup correctly
+    is_docking = True
 
 def docking(event):
-    global ty, cx, width, alpha, cam_pub, cam_msg, bot_pub, bot_msg, is_docking, phase_one, phase_two, phase_three, bot_cam_together, direction, is_charging, tag_visible, alpha_pos_count, alpha_neg_count
+    global width, cx, ty, alpha, alpha_pos_count, alpha_neg_count, tag_visible, \
+        cam_pub, cam_msg, bot_pub, bot_msg, is_charging, is_docking, bot_cam_together, direction, \
+        phase_one, phase_two, phase_three, wait_alpha
     if not is_docking:
         return
     if phase_one:
@@ -83,11 +82,18 @@ def docking(event):
             rospy.sleep(1)
 
             if bot_cam_together:
+                # return instead of if/else to avoid cam_pub
+                if wait_alpha:
+                    alpha_pos_count = 0
+                    alpha_neg_count = 0
+                    wait_alpha = False
+                    return
+                if abs(alpha_pos_count - alpha_neg_count) < 20:
+                    return
+                print("alpha_pos_count:", alpha_pos_count, "    alpha_neg_count:", alpha_neg_count)
                 # robot at left, negative alpha, direction = 1, drive forward, camera spin left by 90 - |alpha|
                 # robot at right, positive alpha, direction = -1, drive backward, camera spin left by 90 + |alpha|
-                alpha_pos_count = 0
-                alpha_neg_count = 0
-                direction = 1 if alpha < 0 else -1
+                direction = 1 if alpha_neg_count > alpha_pos_count else -1
                 # camera spin left with increased pan
                 print("=============================================")
                 print("original pan (expect 90):", cam_msg.pan.data)
@@ -97,7 +103,8 @@ def docking(event):
                 print("first cam spin pan:", cam_msg.pan.data)
                 print("=============================================")
                 bot_cam_together = False
-
+                # in case phase_one again, also need to have cam_bot_together physically
+                wait_alpha = True
             else:
                 # spin camera to face left
                 cam_msg.pan.data = 180
