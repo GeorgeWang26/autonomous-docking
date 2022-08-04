@@ -21,6 +21,7 @@ wait_alpha = True
 
 phase_one = False
 phase_two = False
+phase_two_half = False
 phase_three = False
 
 bot_msg = Twist()
@@ -48,29 +49,36 @@ def tag_update(msg):
 
 
 def start_docking():
-    global cam_pub, cam_msg, bot_pub, bot_msg, is_charging, is_docking, bot_cam_together, phase_one, phase_two, phase_three, wait_alpha
+    global cam_pub, cam_msg, bot_pub, bot_msg, is_charging, is_docking, bot_cam_together, wait_alpha, \
+        phase_one, phase_two, phase_two_half, phase_three
     print("camera face forward together with robot\n")
     cam_msg.pan.data = 90
     cam_pub.publish(cam_msg)
     rospy.sleep(1)
     cam_pub.publish(cam_msg)
     rospy.sleep(3)
+
     bot_msg.linear.x = 0
     bot_msg.angular.z = 0
     bot_pub.publish(bot_msg)
+
     is_charging = False
     bot_cam_together = True
+    wait_alpha = True
+
     phase_one = True
     phase_two = False
+    phase_two_half = False
     phase_three = False
-    wait_alpha = True
+    
     # only start docking last, after cam and bot are together and all status are setup correctly
     is_docking = True
 
+
 def docking(event):
     global width, cx, ty, alpha, alpha_pos_count, alpha_neg_count, tag_visible, \
-        cam_pub, cam_msg, bot_pub, bot_msg, is_charging, is_docking, bot_cam_together, direction, \
-        phase_one, phase_two, phase_three, wait_alpha
+        cam_pub, cam_msg, bot_pub, bot_msg, is_charging, is_docking, bot_cam_together, direction, wait_alpha, \
+        phase_one, phase_two, phase_two_half, phase_three
     if not is_docking:
         return
     if phase_one:
@@ -139,9 +147,9 @@ def docking(event):
                 cam_pub.publish(cam_msg)
                 rospy.sleep(3)
                 phase_two = False
-                phase_three = True
-                print("exiting phase 2, robot (together with camera) face backward tag\n\n\n")
-                is_docking = False
+                phase_two_half = True
+                print("exiting phase 2, robot stop sideways on normal line\n\n\n")
+                # is_docking = False
             else:
                 direction = 1 if (ry) < 0 else -1
                 speed = 0.04 if abs(ry) < 0.3 else 0.2
@@ -151,6 +159,18 @@ def docking(event):
             bot_msg.linear.x = direction * 0.5
         bot_pub.publish(bot_msg)
         return
+
+    if phase_two_half:
+        if abs(alpha) < 3:
+            bot_msg.angular.z = 0
+            phase_two_half = False
+            phase_three = True
+            print("current alpha:", alpha)
+            print("exiting phase 2.5, robot face backwards to tag\n\n\n")
+            is_docking = False
+        else:
+            bot_msg.angular.z = -0.05 if tag_visible else -0.4
+        bot_pub.publish(bot_msg)
 
     if phase_three:
         """"
