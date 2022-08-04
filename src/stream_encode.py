@@ -2,8 +2,6 @@ import cv2
 import rospy
 import yaml
 import numpy as np
-from dt_apriltags import Detector
-from scipy.spatial.transform import Rotation as R
 from sensor_msgs.msg import Image
 
 # arm gray, by default read in nv12 format, single channle

@@ -35,9 +35,6 @@ tag_msg = TagInfo()
 tag_msg.width = w
 tag_msg.height = h
 
-tot = 0
-count = 0
-
 while True:
     ret, raw_frame = cam.read()
     rect_frame = cv2.undistort(raw_frame, cam_mtx, dist_cef, None, new_cam_mtx)
@@ -63,18 +60,9 @@ while True:
         tag_msg.tx = x
         tag_msg.ty = y
         tag_msg.tz = z
-        """
-        NEED TESTING
-        YAW IS MOST IMPORTANT
-        """
         tag_msg.roll = euler[0]
         tag_msg.pitch = euler[1]
         tag_msg.yaw = euler[2]
-
-        tot = tot + euler[2]
-        count += 1
-        print(tot/count)
-        # count %= 10
         
     tag_pub.publish(tag_msg)
 

@@ -1,5 +1,4 @@
 import cv2
-import rospy
 import yaml
 import numpy as np
 from dt_apriltags import Detector
