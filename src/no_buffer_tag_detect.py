@@ -20,7 +20,7 @@ projection_mtx = np.array(calibration["projection_matrix"]["data"]).reshape((3,4
 new_cam_mtx = np.delete(projection_mtx, -1, axis=1)
 new_cam_params = (new_cam_mtx[0,0], new_cam_mtx[1,1], new_cam_mtx[0,2], new_cam_mtx[1,2])
 
-tag_size = 0.166
+tag_size = 0.169
 at_detector = Detector(families='tag36h11',
                             nthreads=12,
                             quad_decimate=2.0,
