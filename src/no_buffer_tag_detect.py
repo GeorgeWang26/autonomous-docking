@@ -38,21 +38,20 @@ tag_msg.height = h
 while True:
     ret, raw_frame = cam.read()
     rect_frame = cv2.undistort(raw_frame, cam_mtx, dist_cef, None, new_cam_mtx)
-    # cv2.imshow("rect", rect_frame)
 
     # use new_cam_params since rect_frame is undistorted
     tags = at_detector.detect(rect_frame, True, new_cam_params, tag_size)
     tag_msg.family = ""
     for tag in tags:
-        print(tag)
+        # print(tag)
         r = R.from_matrix(tag.pose_R)
         euler = r.as_euler("zxy", degrees=True)
         x = tag.pose_t[2][0]
         y = -1 * tag.pose_t[0][0]
         z = -1 * tag.pose_t[1][0]
-        print("x:", x, "y:", y, "z:", z)
-        print("euler", euler)
-        print("--------------------------------------")
+        # print("x:", x, "y:", y, "z:", z)
+        # print("euler", euler)
+        # print("--------------------------------------")
         tag_msg.family = tag.tag_family.decode("utf-8")
         tag_msg.id = tag.tag_id
         tag_msg.cx = tag.center[0]
@@ -66,5 +65,6 @@ while True:
         
     tag_pub.publish(tag_msg)
 
-    if cv2.waitKey(1) == 27:
-        break
+    # cv2.imshow("rect", rect_frame)
+    # if cv2.waitKey(1) == 27:
+    #     break
