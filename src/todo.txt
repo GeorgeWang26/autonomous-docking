@@ -3,11 +3,12 @@ roslaunch ptz_pkg NOML_ptz.launch
 python3 no_buffer_tag.py
 python3 docking.py
 
+1. update is_charging with canbus
 
-1. use a service call to active docking
+2. use a service call to active docking
 
-2. name random values to constants
+3. name random values to constants
 
-3. add abort feature
+4. add abort feature
 phase 2: is_docking=False if move further than |ty| withought seeing tag, ry not needed, only 8.5cm difference
 phase 3: if move too far, further than tx, or have camera face down a bit, and terminate when tag is too big

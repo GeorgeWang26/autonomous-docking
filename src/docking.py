@@ -7,6 +7,7 @@ from geometry_msgs.msg import Twist
 tag_visible = False
 width = 0
 cx = 0
+tx = 0
 ty = 0
 alpha = 0
 alpha_pos_count = 0
@@ -32,14 +33,15 @@ cam_msg.degrees.data = True
 
 
 def tag_update(msg):
-    global tag_visible, width, cx, ty, alpha, alpha_pos_count, alpha_neg_count, alpha_move
+    global tag_visible, width, cx, tx, ty, alpha, alpha_pos_count, alpha_neg_count, alpha_move
     if msg.family == "":
         tag_visible = False
         alpha_move = []
         return
     width = msg.width
-    ty = msg.ty
     cx = msg.cx
+    tx = msg.tx
+    ty = msg.ty
     yaw = msg.yaw
     if alpha > 0:
         alpha_pos_count += 1
@@ -90,7 +92,7 @@ def start_docking():
 
 
 def docking(event):
-    global tag_visible, width, cx, ty, alpha, alpha_pos_count, alpha_neg_count, \
+    global tag_visible, width, cx, tx, ty, alpha, alpha_pos_count, alpha_neg_count, \
         cam_pub, cam_msg, bot_pub, bot_msg, is_charging, is_docking, bot_cam_together, direction, wait_alpha, \
         phase_one, phase_two, phase_two_half, phase_three, alpha_move, alpha_move
     if not is_docking:
@@ -194,28 +196,20 @@ def docking(event):
         return
 
     if phase_three:
-        """"
-        is_charging is never updated, need to kill program with ctr-c
-        """
+        terminate = False
         if is_charging:
+            terminate = True
+            print("robot is charging")
+        elif tx < 0.6:
+            terminate = True
+            print("too close to station and still NOT charging")
+        else:
+            bot_msg.linear.x = -0.2 if tx < 1 else -0.4
+        if terminate:
             bot_msg.linear.x = 0
-            bot_msg.angular.z = 0
             phase_three = False
             is_docking = False
-            print("exiting phase 3, robot is charging\n\n\n")
-        elif tag_visible:
-            if abs(alpha) < 3:
-                bot_msg.linear.x = -0.2
-                bot_msg.angular.z = 0
-            else:
-                # robot spin right slowly, tag in vision
-                bot_msg.linear.x = 0
-                bot_msg.angular.z = -0.05
-        else:
-            # robot spin right fast, tag NOT in vision
-            bot_msg.linear.x = 0
-            bot_msg.angular.z = -0.4
-
+            print("exiting phase 3")
         bot_pub.publish(bot_msg)
         return
 
@@ -232,9 +226,6 @@ tag_info_sub = rospy.Subscriber("/apriltag_detection", TagInfo, tag_update, queu
 rospy.Timer(rospy.Duration(0.05), docking)
 
 
-"""
-for testing purpose, start docking manually
-"""
 start_docking()
 print("start rospy spin\n\n")
 rospy.spin()
