@@ -46,53 +46,75 @@ def tag_update(msg):
     cx = msg.cx
 
     if t_smooth_lock:
-        if abs(tx - msg.tx) < 0.5:
+        if first_visible:
             tx = msg.tx
-        if abs(ty - msg.ty) < 0.5:
             ty = msg.ty
+        else:
+            if abs(tx - msg.tx) < 0.3:
+                tx = msg.tx
+            if abs(ty - msg.ty) < 0.3:
+                ty = msg.ty
     else:
         tx = msg.tx
         ty = msg.ty
+    # # ONLY set first_visible to false after alpha_smooth_lock, because it is used in two places
+    # if alpha_smooth_lock:
+    #     if first_visible or abs(alpha - msg.yaw) < 5:
+    #         first_visible = False
+    #         yaw = msg.yaw
+    #         if alpha > 0:
+    #             alpha_pos_count += 1
+    #         else:
+    #             alpha_neg_count += 1
 
-    if alpha_smooth_lock:
-        if first_visible or abs(alpha - msg.yaw) < 5:
-            first_visible = False
-            yaw = msg.yaw
-            if alpha > 0:
-                alpha_pos_count += 1
-            else:
-                alpha_neg_count += 1
+    #         alpha_move.append(yaw)
+    #         alpha_move_len = len(alpha_move)
+    #         if alpha_move_len > 5:
+    #             alpha_move.pop(0)
+    #             alpha_move_len -= 1
+    #         alpha_sum = 0
+    #         for val in alpha_move:
+    #             alpha_sum += val
+    #         alpha = alpha_sum / alpha_move_len
+    # else:
+    #     yaw = msg.yaw
+    #     if alpha > 0:
+    #         alpha_pos_count += 1
+    #     else:
+    #         alpha_neg_count += 1
 
-            alpha_move.append(yaw)
-            alpha_move_len = len(alpha_move)
-            if alpha_move_len > 5:
-                alpha_move.pop(0)
-                alpha_move_len -= 1
-            alpha_sum = 0
-            for val in alpha_move:
-                alpha_sum += val
-            alpha = alpha_sum / alpha_move_len
-    else:
-        first_visible = False
-        yaw = msg.yaw
-        if alpha > 0:
-            alpha_pos_count += 1
-        else:
-            alpha_neg_count += 1
-
-        alpha_move.append(yaw)
-        alpha_move_len = len(alpha_move)
-        if alpha_move_len > 5:
-            alpha_move.pop(0)
-            alpha_move_len -= 1
-        alpha_sum = 0
-        for val in alpha_move:
-            alpha_sum += val
-        alpha = alpha_sum / alpha_move_len
+    #     alpha_move.append(yaw)
+    #     alpha_move_len = len(alpha_move)
+    #     if alpha_move_len > 5:
+    #         alpha_move.pop(0)
+    #         alpha_move_len -= 1
+    #     alpha_sum = 0
+    #     for val in alpha_move:
+    #         alpha_sum += val
+    #     alpha = alpha_sum / alpha_move_len
     
+    yaw = msg.yaw
+    if alpha > 0:
+        alpha_pos_count += 1
+    else:
+        alpha_neg_count += 1
 
+    alpha_move.append(yaw)
+    alpha_move_len = len(alpha_move)
+    if alpha_move_len > 5:
+        alpha_move.pop(0)
+        alpha_move_len -= 1
+    alpha_sum = 0
+    for val in alpha_move:
+        alpha_sum += val
+    alpha = alpha_sum / alpha_move_len
+
+
+    first_visible = False
     # only set tag_visible=True after all status are updated
     tag_visible = True
+
+
 
 
 def start_docking():
@@ -129,11 +151,11 @@ def docking(event):
     if not is_docking:
         return
     if phase_one:
-        print("alpha:", alpha)
-        t_smooth_lock = False
+        print("ty:", ty, "      alpha:", alpha)
+        t_smooth_lock = True
         alpha_smooth_lock = True
         # if tag_visible and (abs(cx - 0.5 * width) / width) < 0.03:
-        if tag_visible and abs(ty) < 0.04:
+        if tag_visible and abs(ty) < 0.05:
             bot_msg.angular.z = 0
             print("phase 1      stoping robot before spinning camera")
             bot_pub.publish(bot_msg)
@@ -178,7 +200,7 @@ def docking(event):
             rospy.sleep(3)
         else:
             # robot turn right when z < 0
-            bot_msg.angular.z = -0.03 if tag_visible else -0.4
+            bot_msg.angular.z = -0.08 if tag_visible else -0.4
             bot_pub.publish(bot_msg)
         return
 
@@ -188,7 +210,7 @@ def docking(event):
         alpha_smooth_lock = False
         if tag_visible:
             # when camera is facing left 90deg of the robot, rotation center is 8.5cm (0.085m) to the right of optical camera
-            ry = ty - 0.1
+            ry = ty + 0.03
             print("ty:", ty, "  ry:", ry)
             if abs(ry) < 0.03:
                 bot_msg.linear.x = 0
@@ -230,7 +252,7 @@ def docking(event):
             rospy.sleep(3)
             # is_docking = False
         else:
-            bot_msg.angular.z = -0.05 if tag_visible else -0.4
+            bot_msg.angular.z = -0.08 if tag_visible else -0.4
         bot_pub.publish(bot_msg)
         return
 
@@ -241,12 +263,14 @@ def docking(event):
         terminate = False
         if is_charging:
             terminate = True
+            print("\n===========================")
             print("robot is charging")
-        elif tx < 0.73:
+        elif tx < 0.8:
             terminate = True
+            print("\n===========================")
             print("too close to station and still NOT charging")
         else:
-            bot_msg.linear.x = -0.2 if tx < 1 else -0.4
+            bot_msg.linear.x = -0.06 if tx < 1 else -0.4
         if terminate:
             bot_msg.linear.x = 0
             phase_three = False

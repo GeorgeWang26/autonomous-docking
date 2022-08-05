@@ -3,3 +3,8 @@ yaw/alpha > 0 when robot is on the right side of the tag
 camera 90 front, 180 left, 270 back
 
 robot turn right with angular.z < 0
+
+
+as robot get further, y_ooffset get larger (from neg to pos)
+ry=ty-1.5 (close)
+ry=ty+0.3 (far)
