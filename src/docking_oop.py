@@ -124,7 +124,7 @@ class Docking():
             print("ty:", self.ty, "      alpha:", self.alpha)
             self.t_smooth_lock = False
             # if self.tag_visible and (abs(self.cx - 0.5 * self.width) / self.width) < 0.03:
-            if self.tag_visible and abs(self.ty) < 0.05:
+            if self.tag_visible and ((not self.second_time and abs(self.ty) < 0.05) or (self.second_time and abs(self.ty) < 0.02)):
                 self.bot_msg.angular.z = 0
                 print("phase 1      stoping robot before spinning camera")
                 self.bot_pub.publish(self.bot_msg)
