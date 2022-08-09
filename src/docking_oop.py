@@ -215,7 +215,7 @@ class Docking():
         if self.phase_two:
             self.t_smooth_lock = True
             if self.tag_visible:
-                ry = self.ty - 0.11 if not self.second_time else self.ty + 0.2
+                ry = self.ty - 0.11 if not self.second_time else self.ty + 0.21
                 print("ty:", self.ty, "  ry:", ry)
                 if abs(ry) < 0.01:
                     self.bot_msg.linear.x = 0
