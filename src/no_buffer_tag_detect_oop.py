@@ -50,27 +50,27 @@ class TagDetect():
             tags = self.at_detector.detect(rect_frame, True, self.new_cam_params, self.tag_size)
             self.tag_msg.family = ""
             # assuming only one tag in vision
-            tag = tags[0]
-            # for tag in tags:
-            # print(tag)
-            r = R.from_matrix(tag.pose_R)
-            euler = r.as_euler("zxy", degrees=True)
-            x = tag.pose_t[2][0]
-            y = -1 * tag.pose_t[0][0]
-            z = -1 * tag.pose_t[1][0]
-            # print("x:", x, "y:", y, "z:", z)
-            # print("euler", euler)
-            # print("--------------------------------------")
-            self.tag_msg.family = tag.tag_family.decode("utf-8")
-            self.tag_msg.id = tag.tag_id
-            self.tag_msg.cx = tag.center[0]
-            self.tag_msg.cy = tag.center[1]
-            self.tag_msg.tx = x
-            self.tag_msg.ty = y
-            self.tag_msg.tz = z
-            self.tag_msg.roll = euler[0]
-            self.tag_msg.pitch = euler[1]
-            self.tag_msg.yaw = euler[2]
+            # tag = tags[0]
+            for tag in tags:
+                # print(tag)
+                r = R.from_matrix(tag.pose_R)
+                euler = r.as_euler("zxy", degrees=True)
+                x = tag.pose_t[2][0]
+                y = -1 * tag.pose_t[0][0]
+                z = -1 * tag.pose_t[1][0]
+                # print("x:", x, "y:", y, "z:", z)
+                # print("euler", euler)
+                # print("--------------------------------------")
+                self.tag_msg.family = tag.tag_family.decode("utf-8")
+                self.tag_msg.id = tag.tag_id
+                self.tag_msg.cx = tag.center[0]
+                self.tag_msg.cy = tag.center[1]
+                self.tag_msg.tx = x
+                self.tag_msg.ty = y
+                self.tag_msg.tz = z
+                self.tag_msg.roll = euler[0]
+                self.tag_msg.pitch = euler[1]
+                self.tag_msg.yaw = euler[2]
                 
             self.tag_pub.publish(self.tag_msg)
 

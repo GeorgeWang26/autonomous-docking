@@ -69,7 +69,7 @@ class Docking():
         
         self.alpha_move.append(msg.yaw)
         alpha_move_len = len(self.alpha_move)
-        if alpha_move_len > 10:
+        if alpha_move_len > 5:
             self.alpha_move.pop(0)
             alpha_move_len -= 1
         alpha_sum = 0
@@ -124,7 +124,8 @@ class Docking():
             print("ty:", self.ty, "      alpha:", self.alpha)
             self.t_smooth_lock = False
             # if self.tag_visible and (abs(self.cx - 0.5 * self.width) / self.width) < 0.03:
-            if self.tag_visible and ((not self.second_time and abs(self.ty) < 0.05) or (self.second_time and abs(self.ty) < 0.02)):
+            if self.tag_visible and ((not self.second_time and abs(self.ty) < 0.05) or (self.second_time and abs(self.ty) < 0.05)):
+            # if self.tag_visible and abs(self.ty) < 0.05:
                 self.bot_msg.angular.z = 0
                 print("phase 1      stoping robot before spinning camera")
                 self.bot_pub.publish(self.bot_msg)
@@ -170,14 +171,14 @@ class Docking():
                 # alpha count need to reset next time when robot stop again
                 self.wait_alpha = True
                 # robot turn right when z < 0
-                self.bot_msg.angular.z = -0.04 if self.tag_visible else -0.15
+                self.bot_msg.angular.z = -0.04 if self.tag_visible else -0.2
                 self.bot_pub.publish(self.bot_msg)
             return
 
         if self.phase_two:
             self.t_smooth_lock = True
             if self.tag_visible:
-                ry = self.ty - 0.07
+                ry = self.ty - 0.1
                 print("ty:", self.ty, "  ry:", ry)
                 if abs(ry) < 0.01:
                     self.bot_msg.linear.x = 0
@@ -210,12 +211,13 @@ class Docking():
             # may enable t_smooth_lock if needed in testing
             self.t_smooth_lock = False
             print("alpha:", self.alpha)
-            if abs(self.alpha) < 2:
+            if abs(self.alpha) < 1:
                 print("stop now with count:", self.alpha_lock)
                 self.bot_msg.angular.z = 0
-                if self.alpha_lock < 10:
-                    self.alpha_lock += 1
-                    return
+                # if self.alpha_lock < 4:
+                #     self.bot_pub.publish(self.bot_msg)
+                #     self.alpha_lock += 1
+                #     return
                 self.phase_two_half = False
                 self.phase_three = True
                 print("========================")
@@ -225,7 +227,7 @@ class Docking():
                 # self.is_docking = False
             else:
                 self.alpha_lock = 0
-                self.bot_msg.angular.z = -0.04 if self.tag_visible else -0.15
+                self.bot_msg.angular.z = -0.04 if self.tag_visible else -0.2
             self.bot_pub.publish(self.bot_msg)
             return
 
@@ -247,7 +249,7 @@ class Docking():
                 print("\ntoo close to station and still NOT charging")
             else:
                 self.bot_msg.linear.x = -0.06 if self.tx < 1.3 else -0.2
-                if not self.second_time and self.tx < 1.5:
+                if not self.second_time and self.tx < 1:
                     self.start_docking()
                     self.second_time = True
                     return
@@ -269,7 +271,7 @@ class Docking():
                 self.bot_msg.angular.z = 0
                 self.is_docking = False
                 print("\nphase 44444, abort docking, tag is not visible")
-            if abs(self.alpha) < 1:
+            if abs(self.alpha) < 0.5:
                 self.bot_msg.angular.z = 0
                 self.phase_four = False
                 print("exiting phase 4")
