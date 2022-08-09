@@ -200,7 +200,7 @@ class Docking():
 
         if self.phase_one_second_time:
             print("alpha: ", self.alpha)
-            if abs(self.alpha) < 2.5:
+            if self.tag_visible and abs(self.alpha) < 2.5:
                 self.bot_msg.angular.z = 0
                 self.phase_one_second_time = False
                 self.phase_two = True
@@ -281,7 +281,7 @@ class Docking():
                 # wont do anything for now
                 terminate = True
                 print("\nrobot is charging")
-            elif self.tx < 0.74:
+            elif self.tx < 0.75:
                 terminate = True
                 print("\ntoo close to station and still NOT charging")
             else:
