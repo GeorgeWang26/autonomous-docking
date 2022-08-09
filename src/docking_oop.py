@@ -23,10 +23,11 @@ class Docking():
         self.bot_cam_together = False
         self.direction = 0
         self.wait_alpha = True
-        self.alpha_lock = 0
+        # self.alpha_lock = 0
 
         self.second_time = False
         self.phase_one = False
+        self.phase_one_second_time = False
         self.phase_two = False
         self.phase_two_half = False
         self.phase_three = False
@@ -105,9 +106,10 @@ class Docking():
         self.is_charging = False
         self.bot_cam_together = True
         self.wait_alpha = True
-        self.alpha_lock = 0
+        # self.alpha_lock = 0
 
         self.phase_one = True
+        self.phase_one_second_time = False
         self.phase_two = False
         self.phase_two_half = False
         self.phase_three = False
@@ -116,6 +118,27 @@ class Docking():
         # only start docking last, after cam and bot are together and all status are setup correctly
         self.is_docking = True
 
+    
+    def start_docking_second_time(self):
+        self.bot_msg.linear.x = 0
+        self.bot_pub.publish(self.bot_msg)
+
+        self.cam_msg.pan.data = 180
+        self.cam_pub.publish(self.cam_msg)
+        rospy.sleep(1)
+        self.cam_pub.publish(self.cam_msg)
+        rospy.sleep(3)
+
+        self.second_time = True
+        # self.alpha_lock = 0
+
+        self.phase_one = False
+        self.phase_one_second_time = True
+        self.phase_two = False
+        self.phase_two_half = False
+        self.phase_three = False
+        self.phase_four = False
+        
 
     def docking(self, event):
         if not self.is_docking:
@@ -124,8 +147,8 @@ class Docking():
             print("ty:", self.ty, "      alpha:", self.alpha)
             self.t_smooth_lock = False
             # if self.tag_visible and (abs(self.cx - 0.5 * self.width) / self.width) < 0.03:
-            if self.tag_visible and ((not self.second_time and abs(self.ty) < 0.05) or (self.second_time and abs(self.ty) < 0.05)):
-            # if self.tag_visible and abs(self.ty) < 0.05:
+            # if self.tag_visible and ((not self.second_time and abs(self.ty) < 0.05) or (self.second_time and abs(self.ty) < 0.05)):
+            if self.tag_visible and abs(self.ty) < 0.05:
                 self.bot_msg.angular.z = 0
                 print("phase 1      stoping robot before spinning camera")
                 self.bot_pub.publish(self.bot_msg)
@@ -175,10 +198,24 @@ class Docking():
                 self.bot_pub.publish(self.bot_msg)
             return
 
+        if self.phase_one_second_time:
+            print("alpha: ", self.alpha)
+            if abs(self.alpha) < 2.5:
+                self.bot_msg.angular.z = 0
+                self.phase_one_second_time = False
+                self.phase_two = True
+                print("exiting phase 1 second time\n\n\n")
+                rospy.sleep(3)
+            else:
+                # spin left when z > 0
+                self.bot_msg.angular.z = 0.04 if self.tag_visible else 0.2
+                self.bot_pub.publish(self.bot_msg)
+            return
+
         if self.phase_two:
             self.t_smooth_lock = True
             if self.tag_visible:
-                ry = self.ty - 0.11
+                ry = self.ty - 0.11 if not self.second_time else self.ty + 0.2
                 print("ty:", self.ty, "  ry:", ry)
                 if abs(ry) < 0.01:
                     self.bot_msg.linear.x = 0
@@ -211,8 +248,8 @@ class Docking():
             # may enable t_smooth_lock if needed in testing
             self.t_smooth_lock = False
             print("alpha:", self.alpha)
-            if abs(self.alpha) < 1:
-                print("stop now with count:", self.alpha_lock)
+            if (not self.second_time and abs(self.alpha) < 1) or (self.second_time and abs(self.alpha) < 3):
+                # print("stop now with count:", self.alpha_lock)
                 self.bot_msg.angular.z = 0
                 # if self.alpha_lock < 4:
                 #     self.bot_pub.publish(self.bot_msg)
@@ -226,7 +263,7 @@ class Docking():
                 rospy.sleep(3)
                 # self.is_docking = False
             else:
-                self.alpha_lock = 0
+                # self.alpha_lock = 0
                 self.bot_msg.angular.z = -0.04 if self.tag_visible else -0.2
             self.bot_pub.publish(self.bot_msg)
             return
@@ -244,14 +281,13 @@ class Docking():
                 # wont do anything for now
                 terminate = True
                 print("\nrobot is charging")
-            elif self.tx < 0.75:
+            elif self.tx < 0.74:
                 terminate = True
                 print("\ntoo close to station and still NOT charging")
             else:
                 self.bot_msg.linear.x = -0.06 if self.tx < 1.3 else -0.2
-                if not self.second_time and self.tx < 1:
-                    self.start_docking()
-                    self.second_time = True
+                if not self.second_time and self.tx < 1.2:
+                    self.start_docking_second_time()
                     return
 
             if terminate:
@@ -286,8 +322,6 @@ class Docking():
 if __name__ == "__main__":
     docking = Docking()
     # make a service that call start_docking
-    # also set second_time=False in service call
-    docking.second_time = False
     docking.start_docking()
     print("start rospy spin\n\n")
     rospy.spin()
