@@ -281,7 +281,7 @@ class Docking():
                 # wont do anything for now
                 terminate = True
                 print("\nrobot is charging")
-            elif self.tx < 0.75:
+            elif self.tx < 0.765:
                 terminate = True
                 print("\ntoo close to station and still NOT charging")
             else:
