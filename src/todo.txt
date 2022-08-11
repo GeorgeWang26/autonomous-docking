@@ -1,12 +1,5 @@
-roslaunch riab_startup boot.launch
-roslaunch ptz_pkg NOML_ptz.launch
-python3 no_buffer_tag.py
-python3 docking.py
-
-1. update is_charging with canbus
-
-2. use a service call to active docking
-
-3. name random values to constants
-
+1. add abort in phase 2, if euclidean distance greater than calculated ty by 1m
+2. name random values to constants
+3. use a action to active docking
 4. eddit message to have a list in case there are multiple tags in one frame, make a new tag message every loop in tags
+5. update is_charging with canbus

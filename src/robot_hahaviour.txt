@@ -12,7 +12,3 @@ robot        <---(tag)(face as arrow)
 
 increase offset to make robot move right   ry = ty + 0.08
 decrease offset to make robot move left  ry = ty - 0.15
-
-
-
-may need to change phase 2 offset for second time
