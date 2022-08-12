@@ -35,6 +35,7 @@ class Docking():
         self.cur_bot_ori = 999
         self.start_ori = 999
         self.start_ori_count = 0
+        self.ori_lock = False
         self.ever_tag_visible = False
 
         # charging status verify after 10min
@@ -59,7 +60,7 @@ class Docking():
         self.cam_pub = rospy.Publisher("/ptz/move", PTZPosition, queue_size = 1)
         self.bot_pub = rospy.Publisher("/vel_mux/cmd_vel", Twist, queue_size = 1)
         self.tag_info_sub = rospy.Subscriber("/apriltag_detection", TagInfo, self.tag_update, queue_size = 1)
-        self.odom_sub = rospy.Subscriber("/bunker_odom", Odometry, self.odom_updatem, queue_size = 1)
+        self.odom_sub = rospy.Subscriber("/bunker_odom", Odometry, self.odom_update, queue_size = 1)
         self.bot_status_sub = rospy.Subscriber("/bunker_status", BunkerStatus, self.bot_status_update, queue_size = 1)
         # 20hz cycle
         # time.sleep() inside the timer callback does not affect the main cycle such as tag detection
@@ -68,18 +69,21 @@ class Docking():
 
     def odom_update(self, msg):
         self.cur_bot_odom_x = msg.pose.pose.position.x
-        self.cur_bot_odom_y = msg.pose.pose.postiion.y
-        quat = msg.pose.orientation
+        self.cur_bot_odom_y = msg.pose.pose.position.y
+        quat = msg.pose.pose.orientation
         r = R.from_quat([quat.x, quat.y, quat.z, quat.w])
         # result in [roll, pitch, yaw] order
         # try zyx
-        euler = r.as_euler("zxy", degrees=True)
-        print("euler: ", euler)
-        if abs(self.cur_bot_ori - euler[2]) > 1:
-            self.cur_bot_ori = euler[2]
-            if abs(self.cur_bot_ori - self.start_ori) < 0.5:
-                self.start_ori_count += 1
-                print("at starting bot orientation again, count:", self.start_ori_count)
+        euler = r.as_euler("zyx", degrees=True)
+        # for start ori only
+        self.cur_bot_ori = euler[0]
+        # print("start orientation:", self.start_ori, "       current bot orientation:", self.cur_bot_ori)
+        if abs(self.start_ori - self.cur_bot_ori) < 1 and not self.ori_lock:
+            self.ori_lock = True
+            self.start_ori_count += 1
+            print("at starting bot orientation again, count:", self.start_ori_count, "      ori:", self.cur_bot_ori)
+        elif abs(self.start_ori - euler[0]) > 1:
+            self.ori_lock = False
 
 
     def bot_status_update(self, msg):
@@ -151,7 +155,9 @@ class Docking():
         # self.alpha_lock = 0
 
         self.start_ori = self.cur_bot_ori
+        print("start ori:", self.start_ori)
         self.start_ori_count = 0
+        self.ori_lock = True
         self.ever_tag_visible = False
 
         self.check_volt_diff = False
@@ -162,12 +168,14 @@ class Docking():
         self.phase_two_half = False
         self.phase_three = False
         self.phase_four = False
+        self.second_time = False
 
         # only start docking last, after cam and bot are together and all status are setup correctly
         self.is_docking = True
 
     
     def start_docking_second_time(self):
+        print("\n\nsecond time")
         self.bot_msg.linear.x = 0
         self.bot_pub.publish(self.bot_msg)
 
@@ -192,15 +200,17 @@ class Docking():
         if not self.is_docking:
             return
         if self.phase_one:
-            print("ty:", self.ty, "      alpha:", self.alpha)
+            # print("ty:", self.ty, "      alpha:", self.alpha)
+            # print("count:", self.start_ori_count)
             self.t_smooth_lock = False
             if not self.ever_tag_visible and self.start_ori_count >= 2:
                 self.is_docking = False
                 print("phase 1, spin for at least 2 cycles, no tag in vision at all, aborting now")
+                print("ori:", self.cur_bot_ori)
                 return
-            elif self.bot_cam_together and self.start_ori >= 4:
+            elif self.bot_cam_together and self.start_ori_count >= 3:
                 self.is_docking = False
-                print("phase 1, spin at least 4 times, still in first part of phase 1, likely its too far from the tag, abort now")
+                print("phase 1, spin at least 3 times, still in first part of phase 1, likely its too far from the tag, abort now")
                 return
 
             # if self.tag_visible and (abs(self.cx - 0.5 * self.width) / self.width) < 0.03:
@@ -211,6 +221,7 @@ class Docking():
                 rospy.sleep(1)
 
                 if self.bot_cam_together:
+                    print("alpha_pos_count:", self.alpha_pos_count, "    alpha_neg_count:", self.alpha_neg_count)
                     # return instead of if/else to avoid cam_pub and sleep
                     if self.wait_alpha:
                         self.alpha_pos_count = 0
@@ -219,7 +230,6 @@ class Docking():
                         return
                     if abs(self.alpha_pos_count - self.alpha_neg_count) < 20:
                         return
-                    print("alpha_pos_count:", self.alpha_pos_count, "    alpha_neg_count:", self.alpha_neg_count)
                     # robot at left, negative alpha, direction = 1, drive forward, camera spin left by 90 - |alpha|
                     # robot at right, positive alpha, direction = -1, drive backward, camera spin left by 90 + |alpha|
                     self.direction = 1 if self.alpha_neg_count > self.alpha_pos_count else -1
@@ -255,7 +265,7 @@ class Docking():
             return
 
         if self.phase_one_second_time:
-            print("alpha: ", self.alpha)
+            # print("alpha: ", self.alpha)
             if self.tag_visible and abs(self.alpha) < 2.5:
                 self.bot_msg.angular.z = 0
                 self.phase_one_second_time = False
@@ -272,7 +282,7 @@ class Docking():
             self.t_smooth_lock = True
             if self.tag_visible:
                 ry = self.ty - 0.11 if not self.second_time else self.ty + 0.21
-                print("ty:", self.ty, "  ry:", ry)
+                # print("ty:", self.ty, "  ry:", ry)
                 if abs(ry) < 0.01:
                     self.bot_msg.linear.x = 0
                     self.bot_pub.publish(self.bot_msg)
@@ -295,7 +305,7 @@ class Docking():
                     self.bot_msg.linear.x = self.direction * speed
             else:
                 # drive blind based on previous direction, hope to dirve parallel to tag plane
-                print("tag not visible, speed: 0.3")
+                # print("tag not visible, speed: 0.3")
                 self.bot_msg.linear.x = self.direction * 0.3
             self.bot_pub.publish(self.bot_msg)
             return
@@ -303,7 +313,7 @@ class Docking():
         if self.phase_two_half:
             # may enable t_smooth_lock if needed in testing
             self.t_smooth_lock = False
-            print("alpha:", self.alpha)
+            # print("alpha:", self.alpha)
             if (not self.second_time and abs(self.alpha) < 1) or (self.second_time and abs(self.alpha) < 3):
                 # print("stop now with count:", self.alpha_lock)
                 self.bot_msg.angular.z = 0
@@ -326,7 +336,7 @@ class Docking():
 
         if self.phase_three:
             self.t_smooth_lock = True
-            print("tx:", self.tx)
+            # print("tx:", self.tx)
             terminate = False
 
             if not self.tag_visible:
@@ -358,7 +368,7 @@ class Docking():
 
         if self.phase_four:
             self.t_smooth_lock = False
-            print("alpha:", self.alpha)
+            # print("alpha:", self.alpha)
             terminate = False
             if self.is_charging:
                 terminate = True
@@ -391,10 +401,11 @@ class Docking():
         if self.check_volt_diff and (self.cur_bot_volt - self.old_volt) < 1:
             start_x = self.cur_bot_odom_x
             start_y = self.cur_bot_odom_y
-            while math.sqrt((self.cur_bot_odom_x - start_x) ** 2 + (self.cur_bot_odom_y - start_y) ** 2) < 1:
-                print("euclidean distance:", math.sqrt((self.cur_bot_odom_x - start_x) ** 2 + (self.cur_bot_odom_y - start_y) ** 2))
+            while math.sqrt((self.cur_bot_odom_x - start_x) ** 2 + (self.cur_bot_odom_y - start_y) ** 2) < 1.8:
+                # print("euclidean distance:", math.sqrt((self.cur_bot_odom_x - start_x) ** 2 + (self.cur_bot_odom_y - start_y) ** 2))
                 self.bot_msg.linear.x = 0.2
                 self.bot_pub.publish(self.bot_msg)
+            print("euclidean distance:", math.sqrt((self.cur_bot_odom_x - start_x) ** 2 + (self.cur_bot_odom_y - start_y) ** 2))
             self.start_docking()
 
 
