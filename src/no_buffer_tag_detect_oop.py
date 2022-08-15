@@ -9,7 +9,13 @@ from auto_docking.msg import TagInfo
 
 
 class TagDetect():
+    """
+    Publish realtime AprilTag detection result.
+    """
     def __init__(self):
+        """
+        Open streaming pipeline and load camera params from calibration result.
+        """
         self.cam = cv2.VideoCapture("rtspsrc location=rtsp://192.168.42.120:554/snl/live/1/1 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! nvvidconv ! appsink drop=true")
 
         with open("resources/ptz_calibration.yaml") as f:
@@ -42,6 +48,9 @@ class TagDetect():
 
 
     def activate(self):
+        """
+        Constantly publish detection result of undistorted frames.
+        """
         while True:
             ret, raw_frame = self.cam.read()
             rect_frame = cv2.undistort(raw_frame, self.cam_mtx, self.dist_cef, None, self.new_cam_mtx)
