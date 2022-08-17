@@ -52,6 +52,15 @@ class Docking():
         self.cur_bot_odom_x = 0
         self.cur_bot_odom_y = 0
 
+        # distance constants in phase 2
+        self.p2_y_first = -0.11
+        self.p2_y_second = 0.21
+        
+        # distance constants in phase 3
+        self.p3_stop_x = 0.765
+        self.p3_slowdown_x = self.p3_stop_x + 0.535
+        self.p3_second_time_x = self.p3_slowdown_x - 0.1
+
         self.second_time = False
         self.phase_one = False
         self.phase_one_second_time = False
@@ -328,7 +337,7 @@ class Docking():
         if self.phase_two:
             self.t_smooth_lock = True
             if self.tag_visible:
-                ry = self.ty - 0.11 if not self.second_time else self.ty + 0.21
+                ry = self.ty + self.p2_y_first if not self.second_time else self.ty + self.p2_y_second
                 # print("ty:", self.ty, "  ry:", ry)
                 if abs(ry) < 0.01:
                     self.bot_msg.linear.x = 0
@@ -392,12 +401,12 @@ class Docking():
             elif not self.tag_visible:
                 terminate = True
                 print("\nphase 3, abort docking, tag is not visible")
-            elif self.tx < 0.765:
+            elif self.tx < self.p3_stop_x:
                 terminate = True
                 print("\ntoo close to station and still NOT charging")
             else:
-                self.bot_msg.linear.x = -0.06 if self.tx < 1.3 else -0.2
-                if not self.second_time and self.tx < 1.2:
+                self.bot_msg.linear.x = -0.06 if self.tx < self.p3_slowdown_x else -0.2
+                if not self.second_time and self.tx < self.p3_second_time_x:
                     self.start_docking_second_time()
                     return
 

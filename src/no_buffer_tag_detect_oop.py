@@ -7,7 +7,6 @@ from scipy.spatial.transform import Rotation as R
 from auto_docking.msg import TagInfo
 
 
-
 class TagDetect():
     """
     Publish realtime AprilTag detection result.
@@ -16,8 +15,17 @@ class TagDetect():
         """
         Open streaming pipeline and load camera params from calibration result.
         """
+        # webcam
+        # self.cam = cv2.VideoCapture(0)
+        # jetson
         self.cam = cv2.VideoCapture("rtspsrc location=rtsp://192.168.42.120:554/snl/live/1/1 latency=0 ! rtph264depay ! h264parse ! omxh264dec ! nvvidconv ! appsink drop=true")
+        # non-jetson
+        # self.cam = cv2.VideoCapture("rtspsrc location=rtsp://192.168.42.120:554/snl/live/1/1 latency=0 ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! appsink drop=true")
 
+
+        # ros calibration pkg uses cv2.getOptimalNewCameraMatrix(alpha = 0) to calculate projection_mtx
+        # don't need to re-calculate, just read from yml. roi is region of interest
+        # new_cam_mtx, roi = cv2.getOptimalNewCameraMatrix(cam_mtx, dist_cef, (w,h), 0, (w,h))
         with open("resources/ptz_calibration.yaml") as f:
             calibration = yaml.safe_load(f)
             f.close()
@@ -27,17 +35,17 @@ class TagDetect():
         self.dist_cef = np.array(calibration["distortion_coefficients"]["data"])
         self.cam_mtx = np.array(calibration["camera_matrix"]["data"]).reshape((3, 3))
         projection_mtx = np.array(calibration["projection_matrix"]["data"]).reshape((3,4))
-        self.new_cam_mtx = np.delete(projection_mtx, -1, axis=1)
+        self.new_cam_mtx = np.delete(projection_mtx, -1, axis = 1)
         self.new_cam_params = (self.new_cam_mtx[0,0], self.new_cam_mtx[1,1], self.new_cam_mtx[0,2], self.new_cam_mtx[1,2])
 
         self.tag_size = 0.169
-        self.at_detector = Detector(families='tag36h11',
-                                    nthreads=12,
-                                    quad_decimate=1.0,
-                                    quad_sigma=0,
-                                    refine_edges=1,
-                                    decode_sharpening=0.25,
-                                    debug=0)
+        self.at_detector = Detector(families = 'tag36h11',
+                                    nthreads = 12,
+                                    quad_decimate = 1.0,
+                                    quad_sigma = 0,
+                                    refine_edges = 1,
+                                    decode_sharpening = 0.25,
+                                    debug = 0)
 
         self.tag_msg = TagInfo()
         self.tag_msg.width = w
@@ -63,7 +71,7 @@ class TagDetect():
             for tag in tags:
                 # print(tag)
                 r = R.from_matrix(tag.pose_R)
-                euler = r.as_euler("zxy", degrees=True)
+                euler = r.as_euler("zxy", degrees = True)
                 x = tag.pose_t[2][0]
                 y = -1 * tag.pose_t[0][0]
                 z = -1 * tag.pose_t[1][0]
