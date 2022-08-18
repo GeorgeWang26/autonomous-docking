@@ -58,16 +58,16 @@ class Docking():
         self.spin_fast = 0.2
         self.forward = 1
         self.backward = -1
-        self.straight_slow = 0.04
+        self.straight_slow = 0.06
         self.straight_med = 0.2
         self.straight_fast = 0.3
 
         # distance constants in phase 2
-        self.p2_y_first = -0.11
-        self.p2_y_second = 0.21
+        self.p2_y_first = -0.15
+        self.p2_y_second = 0.19
         
         # distance constants in phase 3
-        self.p3_stop_x = 0.765
+        self.p3_stop_x = 0.71
         self.p3_slowdown_x = self.p3_stop_x + 0.535
         self.p3_second_time_x = self.p3_slowdown_x - 0.1
 
@@ -183,7 +183,7 @@ class Docking():
         self.cam_pub.publish(self.cam_msg)
         rospy.sleep(1)
         self.cam_pub.publish(self.cam_msg)
-        rospy.sleep(3)
+        rospy.sleep(2)
 
         self.bot_msg.linear.x = 0
         self.bot_msg.angular.z = 0
@@ -231,7 +231,7 @@ class Docking():
         self.cam_pub.publish(self.cam_msg)
         rospy.sleep(1)
         self.cam_pub.publish(self.cam_msg)
-        rospy.sleep(3)
+        rospy.sleep(1)
 
         self.second_time = True
         # self.alpha_lock = 0
@@ -284,7 +284,7 @@ class Docking():
                 self.bot_msg.angular.z = 0
                 print("phase 1      stoping robot before spinning camera")
                 self.bot_pub.publish(self.bot_msg)
-                rospy.sleep(1)
+                rospy.sleep(0.2)
 
                 if self.bot_cam_together:
                     print("alpha_pos_count:", self.alpha_pos_count, "    alpha_neg_count:", self.alpha_neg_count)
@@ -320,7 +320,7 @@ class Docking():
                 self.cam_pub.publish(self.cam_msg)
                 rospy.sleep(1)
                 self.cam_pub.publish(self.cam_msg)
-                rospy.sleep(3)
+                rospy.sleep(2)
             else:
                 # in case robot miss the tag after it stopped
                 # alpha count need to reset next time when robot stop again
@@ -337,7 +337,7 @@ class Docking():
                 self.phase_one_second_time = False
                 self.phase_two = True
                 print("exiting phase 1 second time\n========================")
-                rospy.sleep(3)
+                # rospy.sleep(3)
             else:
                 # spin left when z > 0
                 self.bot_msg.angular.z = self.spin_left * self.spin_slow if self.tag_visible else self.spin_left * self.spin_fast
@@ -357,7 +357,7 @@ class Docking():
                     self.cam_pub.publish(self.cam_msg)
                     rospy.sleep(1)
                     self.cam_pub.publish(self.cam_msg)
-                    rospy.sleep(3)
+                    rospy.sleep(1)
                     self.phase_two = False
                     self.phase_two_half = True
                     # reset all alpha related data to have fresh spin on phase 2.5
@@ -391,7 +391,7 @@ class Docking():
                 self.phase_three = True
                 print("alpha:", self.alpha)
                 print("exiting phase 2.5, robot face backwards to tag\n========================")
-                rospy.sleep(3)
+                # rospy.sleep(3)
                 # self.is_docking = False
             else:
                 # self.alpha_lock = 0
@@ -425,7 +425,7 @@ class Docking():
                 self.phase_three = False
                 self.phase_four = True
                 print("exiting phase 3\n========================")
-                rospy.sleep(3)
+                # rospy.sleep(3)
                 # self.is_docking = False
             self.bot_pub.publish(self.bot_msg)
             return
