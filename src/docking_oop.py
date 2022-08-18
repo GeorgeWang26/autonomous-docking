@@ -52,6 +52,16 @@ class Docking():
         self.cur_bot_odom_x = 0
         self.cur_bot_odom_y = 0
 
+        self.spin_left = 1
+        self.spin_right = -1
+        self.spin_slow = 0.04
+        self.spin_fast = 0.2
+        self.forward = 1
+        self.backward = -1
+        self.straight_slow = 0.04
+        self.straight_med = 0.2
+        self.straight_fast = 0.3
+
         # distance constants in phase 2
         self.p2_y_first = -0.11
         self.p2_y_second = 0.21
@@ -316,7 +326,7 @@ class Docking():
                 # alpha count need to reset next time when robot stop again
                 self.wait_alpha = True
                 # robot turn right when z < 0
-                self.bot_msg.angular.z = -0.04 if self.tag_visible else -0.2
+                self.bot_msg.angular.z = self.spin_right * self.spin_slow if self.tag_visible else self.spin_right * self.spin_fast
                 self.bot_pub.publish(self.bot_msg)
             return
 
@@ -330,7 +340,7 @@ class Docking():
                 rospy.sleep(3)
             else:
                 # spin left when z > 0
-                self.bot_msg.angular.z = 0.04 if self.tag_visible else 0.2
+                self.bot_msg.angular.z = self.spin_left * self.spin_slow if self.tag_visible else self.spin_left * self.spin_fast
                 self.bot_pub.publish(self.bot_msg)
             return
 
@@ -357,12 +367,12 @@ class Docking():
                     # self.is_docking = False
                 else:
                     self.direction = 1 if (ry) < 0 else -1
-                    speed = 0.04 if abs(ry) < 0.3 else 0.2
+                    speed = self.straight_slow if abs(ry) < 0.3 else self.straight_med
                     self.bot_msg.linear.x = self.direction * speed
             else:
                 # drive blind based on previous direction, hope to dirve parallel to tag plane
                 # print("tag not visible, speed: 0.3")
-                self.bot_msg.linear.x = self.direction * 0.3
+                self.bot_msg.linear.x = self.direction * self.straight_fast
             self.bot_pub.publish(self.bot_msg)
             return
 
@@ -385,7 +395,7 @@ class Docking():
                 # self.is_docking = False
             else:
                 # self.alpha_lock = 0
-                self.bot_msg.angular.z = -0.04 if self.tag_visible else -0.2
+                self.bot_msg.angular.z = self.spin_right * self.spin_slow if self.tag_visible else self.spin_right * self.spin_fast
             self.bot_pub.publish(self.bot_msg)
             return
 
@@ -405,7 +415,7 @@ class Docking():
                 terminate = True
                 print("\ntoo close to station and still NOT charging")
             else:
-                self.bot_msg.linear.x = -0.06 if self.tx < self.p3_slowdown_x else -0.2
+                self.bot_msg.linear.x = self.backward * self.straight_slow if self.tx < self.p3_slowdown_x else self.backward * self.straight_med
                 if not self.second_time and self.tx < self.p3_second_time_x:
                     self.start_docking_second_time()
                     return
@@ -435,7 +445,7 @@ class Docking():
                 print("\nphase4, parallel now")
             else:
                 # turn left if face right side of tag
-                self.bot_msg.angular.z = 0.04 if self.alpha < 0 else -0.04
+                self.bot_msg.angular.z = self.spin_left * self.spin_slow if self.alpha < 0 else self.spin_right * self.spin_slow
             if terminate:
                 self.bot_msg.angular.z = 0
                 self.phase_four = False
@@ -459,7 +469,7 @@ class Docking():
             start_y = self.cur_bot_odom_y
             while math.sqrt((self.cur_bot_odom_x - start_x) ** 2 + (self.cur_bot_odom_y - start_y) ** 2) < 1.8:
                 # print("euclidean distance:", math.sqrt((self.cur_bot_odom_x - start_x) ** 2 + (self.cur_bot_odom_y - start_y) ** 2))
-                self.bot_msg.linear.x = 0.2
+                self.bot_msg.linear.x = self.forward * self.straight_fast
                 self.bot_pub.publish(self.bot_msg)
             print("euclidean distance:", math.sqrt((self.cur_bot_odom_x - start_x) ** 2 + (self.cur_bot_odom_y - start_y) ** 2))
             self.start_docking()

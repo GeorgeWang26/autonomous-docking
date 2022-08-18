@@ -1,4 +1,4 @@
-# Introduction
+# Autonomous Docking
 Docking in action LINK TO VIDEO
 
 This packge provides auto-docking ability to any differential drive robot with a camera that could precisely spin horizontally to any degree. The system uses vision with AprilTag to locate the position and orientation of the wireless charging staton in the 3D space. Since the system uses vision to localize, the size of the tag is going to afffect the effective range of the system. It will fail at long range as the target when the target is too small. During development, the system is tested to work in 3m radius range from the charging station with tag size of 16.9cm, as attached in [src/resources/36h11_0.jpg](src/resources/36h11_0.jpeg). To increase the effective radius, increase the size of the tag. Control signals are published using ROS to motor drivers since the rest of the robot at development uses ROS. However, no ROS packages are used in the docking system, meaning it is easily adaptable to other communication protocols (ie: mqtt) with a slight modification to the publisher/subscriber related lines in the code.
@@ -175,6 +175,19 @@ self.p3_stop_x = 0.765
 `p2_y_first`, `p2_y_second` are the y axis (left/right) offset in phase 2 for first and second alignment respectively. They are used to make the robot line up with the charging station at the end of p2. To adjust y offset, from the tag, facing direction of charging, increase offset to make robot move right, decrease offset to make robot move left.
 
 `p3_stop_x` is the x value from tag detection when robot is charging. It is used to stop robot from running into the charging station. Increase to let robot come closer to station, decrease to stop robot further away.
+
+Robot speed while docking is also configurable by changing the following lines from `__init__()` in docking_oop.py
+```
+self.spin_left = 1
+self.spin_right = -1
+self.spin_slow = 0.04
+self.spin_fast = 0.2
+self.forward = 1
+self.backward = -1
+self.straight_slow = 0.04
+self.straight_med = 0.2
+self.straight_fast = 0.3
+```
 
 # Design Breakdown
 In this section I'm going to explain my thought process in designing this system and why I didn't choose other methods that are similar.
