@@ -1,10 +1,10 @@
 # Autonomous Docking
 This packge provides auto-docking ability to any differential drive robot with a camera that could precisely spin horizontally to any degree. The system uses vision with AprilTag to locate the position and orientation of the wireless charging staton in the 3D space. Since the system uses vision to localize, the size of the tag is going to afffect the effective range of the system. It will fail at long range as the target when the target is too small. During development, the system is tested to work in 3m radius range from the charging station with tag size of 16.9cm, as attached in [doc/36h11_0.jpg](doc/36h11_0.jpeg). To increase the effective radius, increase the size of the tag. Control signals are published using ROS to motor drivers since the rest of the robot at development uses ROS. However, no ROS packages are used in the docking system, meaning it is easily adaptable to other communication protocols (ie: mqtt) with a slight modification to the publisher/subscriber related lines in the code.
 
+https://user-images.githubusercontent.com/44683126/186012292-9144e186-d740-4d32-9c4c-b042317393f6.mp4
+
 The system accuracy is tested to be 95% within the 3m range, with tag size 16.9cm \
 <img src="doc/docking_accuracy.png">
-
-https://user-images.githubusercontent.com/44683126/186012292-9144e186-d740-4d32-9c4c-b042317393f6.mp4
 
 # Requirements
   - Effective range of the system is 3m from the charging station. This is tested with a 16.9cm tag, changing the size of the tag will change the effective range of the system.
@@ -19,7 +19,7 @@ https://user-images.githubusercontent.com/44683126/186012292-9144e186-d740-4d32-
 http://wiki.ros.org/camera_calibration/Tutorials/MonocularCalibration
 
 Print checkerboard at https://markhedleyjones.com/projects/calibration-checkerboard-collection \
-Select checkboard with size A1 and larger to get better accuracy
+Select checkboard with size A1 and larger to get better accuracy, sample checkerboard is at [doc/A1-80mm-9x6.pdf](doc/A1-80mm-9x6.pdf)
 
 Install rosdep
 ```
@@ -36,7 +36,7 @@ rosdep install camera_calibration
 ```
 
 Run streaming and calibration nodes
-  - `--size` refers to the number of internal corner, as described in the OpenCV documentation (i.e. the 8x6 checkerboard contains 9x7 squares)
+  - `--size` refers to the number of internal corner, as described in the OpenCV documentation (i.e. the 9x6 checkerboard contains 10x7 squares, as shown in sample)
   - `--square` refers to the side length of squares measuered in meters
 ```
 # terminal 1
@@ -155,7 +155,7 @@ If the tag used has different size than 16.9cm, its new dimension should also be
 self.tag_size = 0.169
 ```
 
-## Distance offset calibration
+## Distance Offset Calibration
 Tag must be in vision at all time during phase 3, if not the docking system will abort. So if optical camera is placed to the right side of the robot when backing up, tag should also be placed on the left side of the charging station, and vice versa. If tag is not visible when robot is close to statin, change the positioning of the tag, do not tilt the camera. This means the relative position of the tag to the station could vary between different setups. Thus testing is needed to calibrate the distance parameters.
 
 In `__init__()` in docking_oop.py, you should find
@@ -169,9 +169,10 @@ self.p2_y_second = 0.21
 self.p3_stop_x = 0.765
 ```
 
-`p2_y_first`, `p2_y_second` are the y axis (left/right) offset in phase 2 for first and second alignment respectively. They are used to make the robot line up with the charging station at the end of phase 2. To adjust y offset, from the tag, facing direction of charging, increase offset to make robot move right, decrease offset to make robot move left.
+`p2_y_first`, `p2_y_second` are the y axis (left/right) offset in phase 2 for first and second alignment respectively. They are used to make the robot line up with the charging station at the end of phase 2. Follow the diagram below to tune the y offset. \
+<img src="doc/y_offset.png">
 
-`p3_stop_x` is the x value from tag detection when robot is charging. It is used to stop robot from running into the charging station. Increase to let robot come closer to station, decrease to stop robot further away.
+`p3_stop_x` is the x value from tag detection when robot is charging. It is used to stop robot from running into the charging station. Decrease to make robot come closer to the charging station, increase the value to stop robot further away from the station.
 
 Robot speed while docking is also configurable by changing the following lines from `__init__()` in docking_oop.py
 ```
