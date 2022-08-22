@@ -1,19 +1,25 @@
 # Autonomous Docking
-Docking in action LINK TO VIDEO
+This packge provides auto-docking ability to any differential drive robot with a camera that could precisely spin horizontally to any degree. The system uses vision with AprilTag to locate the position and orientation of the wireless charging staton in the 3D space. Since the system uses vision to localize, the size of the tag is going to afffect the effective range of the system. It will fail at long range as the target when the target is too small. During development, the system is tested to work in 3m radius range from the charging station with tag size of 16.9cm, as attached in [doc/36h11_0.jpg](doc/36h11_0.jpeg). To increase the effective radius, increase the size of the tag. Control signals are published using ROS to motor drivers since the rest of the robot at development uses ROS. However, no ROS packages are used in the docking system, meaning it is easily adaptable to other communication protocols (ie: mqtt) with a slight modification to the publisher/subscriber related lines in the code.
 
-This packge provides auto-docking ability to any differential drive robot with a camera that could precisely spin horizontally to any degree. The system uses vision with AprilTag to locate the position and orientation of the wireless charging staton in the 3D space. Since the system uses vision to localize, the size of the tag is going to afffect the effective range of the system. It will fail at long range as the target when the target is too small. During development, the system is tested to work in 3m radius range from the charging station with tag size of 16.9cm, as attached in [src/resources/36h11_0.jpg](src/resources/36h11_0.jpeg). To increase the effective radius, increase the size of the tag. Control signals are published using ROS to motor drivers since the rest of the robot at development uses ROS. However, no ROS packages are used in the docking system, meaning it is easily adaptable to other communication protocols (ie: mqtt) with a slight modification to the publisher/subscriber related lines in the code.
+The system accuracy is tested to be 95% within the 3m range, with tag size 16.9cm \
+<img src="doc/docking_accuracy.png">
+
+<video><source src="doc/demo.mp4"></video>
 
 # Requirements
+  - Effective range of the system is 3m from the charging station. This is tested with a 16.9cm tag, changing the size of the tag will change the effective range of the system.
+  - [Distance offset calibration](#distance-offset-calibration) is **required** everytime charging station is moved to a new ground level. It is preffered to have flat and leveled surface when docking.
   - Tag must be visible when robot is docked, if camera cannot see the tag after docking, adjust tag position, see more in [Debugging and Testing](#debugging-and-testing).
   - Tag must be vertical to the ground (no tilting forward/backward), tag could be rotated but preferably it is parallel to the charging station.
   - Make sure there is only one tag in vision while docking (make a list message around TagInfo.msg to include multiple tag detection).
   - Avoid strong light shinning on the tag, it may affect detection accuracy.
 
 # Setup
-## Calibration (monocular camera)
+## Camera Calibration (monocular camera)
 http://wiki.ros.org/camera_calibration/Tutorials/MonocularCalibration
 
-Print checkerboard at https://markhedleyjones.com/projects/calibration-checkerboard-collection
+Print checkerboard at https://markhedleyjones.com/projects/calibration-checkerboard-collection \
+Select checkboard with size A1 and larger to get better accuracy
 
 Install rosdep
 ```
@@ -128,7 +134,7 @@ Python 3:
 https://github.com/AprilRobotics/apriltag \
 https://github.com/duckietown/lib-dt-apriltags
 
-Use 36h11 tag family for detection, id:0 example at [src/resources/36h11_0.jpeg](src/resources/36h11_0.jpeg)
+Use 36h11 tag family for detection, id:0 example at [doc/36h11_0.jpeg](doc/36h11_0.jpeg)
 
 Install python binding (by DuckyTown) of the originial AprilTag library written in c (by APRIL robotics lab)
 ```
@@ -144,22 +150,13 @@ cmake --build build --target install
 sudo ldconfig
 ```
 
-# System Overview
+If the tag used has different size than 16.9cm, its new dimension should also be updated in [src/no_buffer_tag_detect_oop.py](src/no_buffer_tag_detect_oop.py).
+```
+self.tag_size = 0.169
+```
 
-## AprilTag Detection Result
-After providing calibration data, tag size and tag family, the system will be able to detect 3D pose of the tag, including orientation (roll, pitch, yaw) and position (x, y, z) data with camera as the origin. However, not all data are used in the system, for orientation, only yaw (also refered to as alpha in the code) is used, and for position, z is irrelavant since height is not used when lining up the robot. It is also worth noting that x is the depth axis (forward is positive) and y is the parallel axis (left is positive).
-
-## ROS Plot
-drawing
-
-## System Diagram
-drawing
-
-## Docking Phases
-drawing
-
-# Debugging and Testing
-Tag must be in vision at all time during p3, if not the docking system will abort. So if optical camera is placed to the right side of the robot when backing up, tag should also be placed on the left side of the charging station, and vice versa. If tag is not visible when robot is close to statin, change the positioning of the tag, do not tilt the camera. This means the relative position of the tag to the station could vary between different setups. Thus testing is needed to calibrate the distance parameters.
+## Distance offset calibration
+Tag must be in vision at all time during phase 3, if not the docking system will abort. So if optical camera is placed to the right side of the robot when backing up, tag should also be placed on the left side of the charging station, and vice versa. If tag is not visible when robot is close to statin, change the positioning of the tag, do not tilt the camera. This means the relative position of the tag to the station could vary between different setups. Thus testing is needed to calibrate the distance parameters.
 
 In `__init__()` in docking_oop.py, you should find
 
@@ -172,7 +169,7 @@ self.p2_y_second = 0.21
 self.p3_stop_x = 0.765
 ```
 
-`p2_y_first`, `p2_y_second` are the y axis (left/right) offset in phase 2 for first and second alignment respectively. They are used to make the robot line up with the charging station at the end of p2. To adjust y offset, from the tag, facing direction of charging, increase offset to make robot move right, decrease offset to make robot move left.
+`p2_y_first`, `p2_y_second` are the y axis (left/right) offset in phase 2 for first and second alignment respectively. They are used to make the robot line up with the charging station at the end of phase 2. To adjust y offset, from the tag, facing direction of charging, increase offset to make robot move right, decrease offset to make robot move left.
 
 `p3_stop_x` is the x value from tag detection when robot is charging. It is used to stop robot from running into the charging station. Increase to let robot come closer to station, decrease to stop robot further away.
 
@@ -188,6 +185,55 @@ self.straight_slow = 0.04
 self.straight_med = 0.2
 self.straight_fast = 0.3
 ```
+
+## Launch
+```
+# terminal 1
+# launch other nodes in the robot
+
+# terminal 2
+# start april tag detection, must run from src/ to load calibration files with relative path
+cd src
+python3 no_buffer_tag_detect_oop.py
+
+# terminal 3
+# start docking 
+cd src
+python3 docking_oop
+```
+
+# System Overview
+## AprilTag Detection Result
+After providing calibration data, tag size and tag family, the system will be able to detect 3D pose of the tag, including orientation (roll, pitch, yaw) and position (x, y, z) data with camera as the origin. However, not all data are used in the system, for orientation, only yaw (also refered to as alpha in the code) is used, and for position, z is irrelavant since height is not used when lining up the robot. It is also worth noting that x is the depth axis (forward is positive) and y is the parallel axis (left is positive). \
+Other than distance, the system also detects tag's center and corner positions in pixels. This data is currently not used in the system, but can be utilized if you want to replace phase 2 with two tags, more on this alternative approach in [Design Breakdown](#design-breakdown).
+
+## ROS Topic Diagram
+`/bunker_odom` (used for abort in phase 1 if spining too long withought seeing tag) and `/bunker_status` (used to monitor voltage change) are not part of the core docking system. Related code can be removed if they don't exist in your robot. \
+`/vel_mux/cmd_vel` is used to control movement of the robot, and `/ptz/move` is used to control the camera angle. Both should be mapped to equivalent topics in your robot. \
+<img src="doc/ros_diagram.png">
+
+## System Diagram
+<img src="doc/system_diagram.png">
+
+## Docking Phases
+Orange arrow represent heading of the robot, black arrow represent heading of the camera.
+### Phase 1
+<img src="doc/phase1.png">
+
+### Phase 1 second time
+<img src="doc/phase1_second_time.png">
+
+### Phase 2
+<img src="doc/phase2.png">
+
+### Phase 2.5
+<img src="doc/phase2.5.png">
+
+### Phase 3
+<img src="doc/phase3.png">
+
+### Phase 4
+<img src="doc/phase4.png">
 
 # Design Breakdown
 In this section I'm going to explain my thought process in designing this system and why I didn't choose other methods that are similar.

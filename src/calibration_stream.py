@@ -16,5 +16,6 @@ cam = cv2.VideoCapture(0)
 
 while True:
     ret, frame = cam.read()
+    # could also use cv2.imencode() to encode into jpeg format, but that would required custom reciever/subscriber as well
     msg = bridge.cv2_to_imgmsg(frame, encoding = "bgr8")
     stream.publish(msg)
