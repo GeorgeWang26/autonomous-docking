@@ -4,7 +4,7 @@ This packge provides auto-docking ability to any differential drive robot with a
 The system accuracy is tested to be 95% within the 3m range, with tag size 16.9cm \
 <img src="doc/docking_accuracy.png">
 
-<video><source src="doc/demo.mp4"></video>
+https://user-images.githubusercontent.com/44683126/186012292-9144e186-d740-4d32-9c4c-b042317393f6.mp4
 
 # Requirements
   - Effective range of the system is 3m from the charging station. This is tested with a 16.9cm tag, changing the size of the tag will change the effective range of the system.
