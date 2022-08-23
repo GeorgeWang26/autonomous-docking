@@ -8,59 +8,13 @@ The system accuracy is tested to be 95% within the 3m range, with tag size 16.9c
 
 # Requirements
   - Effective range of the system is 3m from the charging station. This is tested with a 16.9cm tag, changing the size of the tag will change the effective range of the system.
-  - [Distance offset calibration](#distance-offset-calibration) is **required** everytime charging station is moved to a new ground level. It is preffered to have flat and leveled surface when docking.
+  - [Distance Offset Calibration](#distance-offset-calibration) is **required** everytime charging station is moved to a new ground level. It is preffered to have flat and leveled surface when docking.
   - Tag must be visible when robot is docked, if camera cannot see the tag after docking, adjust tag position, see more in [Debugging and Testing](#debugging-and-testing).
   - Tag must be vertical to the ground (no tilting forward/backward), tag could be rotated but preferably it is parallel to the charging station.
   - Make sure there is only one tag in vision while docking (make a list message around TagInfo.msg to include multiple tag detection).
   - Avoid strong light shinning on the tag, it may affect detection accuracy.
 
 # Setup
-## Camera Calibration (monocular camera)
-http://wiki.ros.org/camera_calibration/Tutorials/MonocularCalibration
-
-Print checkerboard at https://markhedleyjones.com/projects/calibration-checkerboard-collection \
-Select checkboard with size A1 and larger to get better accuracy, sample checkerboard is at [doc/A1-80mm-9x6.pdf](doc/A1-80mm-9x6.pdf)
-
-Install rosdep
-```
-# ROS Noetic
-sudo apt-get install python3-rosdep
-
-# ROS Melodic and earlier
-sudo apt-get install python-rosdep
-```
-
-Install camera_calibration package
-```
-rosdep install camera_calibration
-```
-
-Run streaming and calibration nodes
-  - `--size` refers to the number of internal corner, as described in the OpenCV documentation (i.e. the 9x6 checkerboard contains 10x7 squares, as shown in sample)
-  - `--square` refers to the side length of squares measuered in meters
-```
-# terminal 1
-roscore
-
-# terminal 2
-cd src
-python3 calibration_stream.py
-
-# terminal 3, only source ros, don't source ws
-source /opt/ros/noetic/setup.bash
-rosrun camera_calibration cameracalibrator.py --size 8x6 --square 0.108
-```
-
-Obtain calibration result
-```
-cd src/resources
-mkdir tmp
-mv /tmp/calibrationdata.tar.gz tmp
-tar -xvf tmp/calibrationdata.tar.gz -C tmp
-mv tmp/ost.yaml ptz_calibration.yaml
-rm -r tmp
-```
-
 ## OpenCV
 https://docs.opencv.org/4.x/d2/de6/tutorial_py_setup_in_ubuntu.html
 
@@ -130,6 +84,53 @@ Python 3:
   install path:                lib/python3.8/site-packages/cv2/python-3.8
 ```
 
+## Camera Calibration (monocular camera)
+http://wiki.ros.org/camera_calibration/Tutorials/MonocularCalibration
+
+Print checkerboard at https://markhedleyjones.com/projects/calibration-checkerboard-collection \
+Select checkboard with size A1 and larger to get better accuracy, sample checkerboard is at [doc/A1-80mm-9x6.pdf](doc/A1-80mm-9x6.pdf)
+
+Install rosdep
+```
+# ROS Noetic
+sudo apt-get install python3-rosdep
+
+# ROS Melodic and earlier
+sudo apt-get install python-rosdep
+```
+
+Install camera_calibration package
+```
+rosdep install camera_calibration
+```
+
+Run streaming and calibration nodes
+  - `--size` refers to the number of internal corner, as described in the OpenCV documentation (i.e. the 9x6 checkerboard contains 10x7 squares, as shown in sample)
+  - `--square` refers to the side length of squares measuered in meters
+```
+# terminal 1
+roscore
+
+# terminal 2, check source code to select desired streaming pipeline
+cd src
+python3 calibration_stream.py
+
+# terminal 3, MUST update parameters
+# only source ros, don't source ws. MUST run with a monitor
+source /opt/ros/noetic/setup.bash
+rosrun camera_calibration cameracalibrator.py --size 8x6 --square 0.108
+```
+
+After calibration is done, obtain the result
+```
+cd src/resources
+mkdir tmp
+mv /tmp/calibrationdata.tar.gz tmp
+tar -xvf tmp/calibrationdata.tar.gz -C tmp
+mv tmp/ost.yaml ptz_calibration.yaml
+rm -r tmp
+```
+
 ## AprilTag
 https://github.com/AprilRobotics/apriltag \
 https://github.com/duckietown/lib-dt-apriltags
@@ -169,7 +170,7 @@ self.p2_y_second = 0.21
 self.p3_stop_x = 0.765
 ```
 
-`p2_y_first`, `p2_y_second` are the y axis (left/right) offset in phase 2 for first and second alignment respectively. They are used to make the robot line up with the charging station at the end of phase 2. Follow the diagram below to tune the y offset. \
+`p2_y_first`, `p2_y_second` are the y axis (left/right) offset in phase 2 for first and second alignment respectively. They are used to make the robot line up with the charging station at the end of phase 2. Follow the diagram below to tune the y offset. Start with 0 offset, then use binary search approach to obtain desired offset for the system. \
 <img src="doc/y_offset.png">
 
 `p3_stop_x` is the x value from tag detection when robot is charging. It is used to stop robot from running into the charging station. Decrease to make robot come closer to the charging station, increase the value to stop robot further away from the station.
