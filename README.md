@@ -156,6 +156,22 @@ If the tag used has different size than 16.9cm, its new dimension should also be
 self.tag_size = 0.169
 ```
 
+## Launch
+```
+# terminal 1
+# launch other nodes in the robot
+
+# terminal 2
+# start april tag detection, must run from src/ to load calibration files with relative path
+cd src
+python3 no_buffer_tag_detect_oop.py
+
+# terminal 3
+# start docking 
+cd src
+python3 docking_oop
+```
+
 ## Distance Offset Calibration
 Tag must be in vision at all time during phase 3, if not the docking system will abort. So if optical camera is placed to the right side of the robot when backing up, tag should also be placed on the left side of the charging station, and vice versa. If tag is not visible when robot is close to statin, change the positioning of the tag, do not tilt the camera. This means the relative position of the tag to the station could vary between different setups. Thus testing is needed to calibrate the distance parameters.
 
@@ -170,7 +186,7 @@ self.p2_y_second = 0.21
 self.p3_stop_x = 0.765
 ```
 
-`p2_y_first`, `p2_y_second` are the y axis (left/right) offset in phase 2 for first and second alignment respectively. They are used to make the robot line up with the charging station at the end of phase 2. Follow the diagram below to tune the y offset. Start with 0 offset, then use binary search approach to obtain desired offset for the system. \
+`p2_y_first`, `p2_y_second` are the y axis (left/right) offset in phase 2 for first and second alignment respectively. They are used to make the robot line up with the charging station at the end of phase 2. Follow the diagram below to tune the y offset. It is recommended to start tuning with both offsets set to 0, then use binary search approach to obtain desired value for the system.\
 <img src="doc/y_offset.png">
 
 `p3_stop_x` is the x value from tag detection when robot is charging. It is used to stop robot from running into the charging station. Decrease to make robot come closer to the charging station, increase the value to stop robot further away from the station.
@@ -186,22 +202,6 @@ self.backward = -1
 self.straight_slow = 0.04
 self.straight_med = 0.2
 self.straight_fast = 0.3
-```
-
-## Launch
-```
-# terminal 1
-# launch other nodes in the robot
-
-# terminal 2
-# start april tag detection, must run from src/ to load calibration files with relative path
-cd src
-python3 no_buffer_tag_detect_oop.py
-
-# terminal 3
-# start docking 
-cd src
-python3 docking_oop
 ```
 
 # System Overview
